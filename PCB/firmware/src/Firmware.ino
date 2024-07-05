@@ -62,9 +62,9 @@ void setup() {
     		Serial.println("offline");
 		} else {
 			Serial.println("online");
-			//rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 		}
 	}
+	rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
 	// SD Card Setup
 	Serial.print("SD ... ");
@@ -129,7 +129,7 @@ void loop() {
 		digitalWrite(DATA_LED_PIN, HIGH);
 
 		// Add Date
-		DateTime now = rtc.now();
+		//DateTime now = rtc.now();
 		//date += now.timestamp();
 		date += String(millis());
 		
@@ -228,6 +228,7 @@ void loop() {
 	// Data Sampling Indicator Off
 	digitalWrite(DATA_LED_PIN, LOW);
 		
+	Serial.print(data);
 	
 	if (DATALOG) {
 		// Data logging
@@ -260,8 +261,6 @@ void loop() {
 		}
 		file.close();
 
-	} else {
-		Serial.println(data);
 	}
 	delay(interval);
 
