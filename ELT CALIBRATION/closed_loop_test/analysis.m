@@ -5,54 +5,44 @@
 %
 
 clc, clear, close all
-% set(groot,'defaulttextinterpreter','tex');  
-% set(groot, 'defaultAxesTickLabelInterpreter','tex');  
-% set(groot, 'defaultLegendInterpreter','tex');
-set(gca, 'FontSize', 40)
 
-%% Import Datasets
+%% Import Data
 
-% import
+% import elt sensor dataset
 daq = IMPORTDAQFILE("data/daq_data_7_5.csv");
+daq = rmmissing(daq);
+
+% import licor reference instrument dataset
 licor = IMPORTLICORFILE("data/licor_data_7_5.txt");
+licor = rmmissing(licor);
 
-% split daq datasets into two seperate datasets, so that if one sensor goes
-% offline we can still create a strong calibration with a sensor with more
-% data.
-daq.Q = [];
-daqa = daq;
-daqb = daq;
-daqa.CB = [];
-daqa.TB = [];
-daqa.HB = [];
-daqb.CA = [];
-daqb.TA = [];
-daqb.HA = [];
-
+% split per-sensor data
+sensor_data = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
 
 
 %%
 % remove rows that show the ELTs throwing errors
 elt_errors = [-999,500, 2815, 64537, 231753, 65535, 2500, 2559];
-for elt_error = elt_errors
-    daq_idx = daqa.CA ~= elt_error;
-    daqa = daqa(daq_idx, :);
-    daq_idx = daqb.CB ~= elt_error;
-    daqb = daqb(daq_idx, :);
-end
+
+% remove values that are outside of expected dynamic range.
+
 
 %% plot raw sensor data
 figure();
 hold on;
-plot(daqa.T, daqa.CA, 'DisplayName', 'ELT CO_2 A');
-plot(daqb.T, daqb.CB, 'DisplayName', 'ELT CO_2 B');
-plot(licor.T, licor.C, 'DisplayName', 'LICOR CO_2');
+plot(daq.T, daq.CA, '.','DisplayName', 'ELT CO_2 A');
+plot(daq.T, daq.CB, '.','DisplayName', 'ELT CO_2 B');
+plot(daq.T, daq.TA, '.','DisplayName', 'TEMP A');
+plot(daq.T, daq.HA, '.','DisplayName', 'HUMID A');
+plot(daq.T, daq.TA, '.','DisplayName', 'TEMP B');
+plot(daq.T, daq.HA, '.','DisplayName', 'HUMID B');
+plot(licor.T, licor.C, '.','DisplayName', 'LICOR CO_2');
 legend();
 title("Closed Loop Calibration - Raw Sensor Data");
 
 %% smooth data over 5 mins
 
-smooth_dt = minutes(60);
+smooth_dt = minutes(1);
 retime_dt = seconds(5);
 
 % retime datasets
@@ -95,7 +85,6 @@ CB_Model = fitlm([datab.CB, datab.TB, datab.HB], datab.C);
 
 
 % plot regressions
-
 text_size = 30;
 
 fig = figure();
