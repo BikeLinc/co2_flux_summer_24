@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <DHT.h>
-#include <RTClib.h>
+#include "../include/RTClib/RTClib.h"
 #include <SPI.h>
 #include <SD.h>
 #include <avr/wdt.h>

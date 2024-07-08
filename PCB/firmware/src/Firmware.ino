@@ -34,7 +34,7 @@ DHT dhtA(DHT_DATA_A_PIN, DHT11);
 DHT dhtB(DHT_DATA_B_PIN, DHT11);
 
 // Real-Time Clock
-RTC_DS1307		rtc;
+RTC_DS3231		rtc;
 
 // SD Card
 Sd2Card card;
@@ -55,16 +55,15 @@ void setup() {
 	
 	// RTC Setup
 	Serial.print("RTC ... ");
-	if (! rtc.begin()) {
+	if (!rtc.begin()) {
 		Serial.println("offline");
 	} else {
-		if (! rtc.isrunning()) {
-    		Serial.println("offline");
-		} else {
-			Serial.println("online");
-		}
+		Serial.println("online");
 	}
-	rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+	if (rtc.lostPower()) {
+		rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+	}
+	
 
 	// SD Card Setup
 	Serial.print("SD ... ");
@@ -129,9 +128,9 @@ void loop() {
 		digitalWrite(DATA_LED_PIN, HIGH);
 
 		// Add Date
-		//DateTime now = rtc.now();
-		//date += now.timestamp();
-		date += String(millis());
+		DateTime now = rtc.now();
+		date += now.timestamp();
+		//date += String(millis());
 		
 		// To hold sensor values
 		int co2A, co2B;
@@ -228,16 +227,19 @@ void loop() {
 	// Data Sampling Indicator Off
 	digitalWrite(DATA_LED_PIN, LOW);
 		
-	Serial.print(data);
+	Serial.print(data); 
 	
 	if (DATALOG) {
 		// Data logging
 		Serial.print("data -> ");
 
-		File file = SD.open(LOGFILENAME, FILE_WRITE);
+		DateTime now = rtc.now();		
+		char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
+  		snprintf(filename, sizeof(filename), "%02d_%02d_%02d.txt", now.year() % 100, now.month(), now.day());
+		File file = SD.open(filename, FILE_WRITE);
 		if (file) {
 			
-			Serial.print(LOGFILENAME);
+			Serial.print(filename);
 			file.println(data);
 			// close the file:	
 			
