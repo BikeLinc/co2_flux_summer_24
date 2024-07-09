@@ -1,5 +1,12 @@
-function licordata = IMPORTLICOR(filename)
-
+function licordata = IMPORTLICORFILE(filename)
+%IMPORTLICORFILE Import data from a text file
+%  DAQ = IMPORTLICORFILE(FILENAME) reads data from text file FILENAME for the
+%  default selection.  Returns the data as a table.
+%
+%  DAQ = IMPORTLICORFILE(FILE, DATALINES) reads data for the specified row
+%  interval(s) of text file FILENAME. Specify DATALINES as a positive
+%  scalar integer or a N-by-2 array of positive scalar integers for
+%  dis-contiguous row intervals.
 
 %% Input handling
 
