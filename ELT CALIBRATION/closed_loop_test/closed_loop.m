@@ -14,7 +14,7 @@ clc, clear, close all
 %% Load Data
 
 % import elt sensor dataset
-daq = IMPORTDAQFILE("data/7.5.2024/daq.csv");
+daq = IMPORTDAQFILE("data/7.5.2024/daq_TS_FIX.csv");
 daq = rmmissing(daq);
 
 % from elt sensor dataset, grab per-sensor dataset
@@ -25,22 +25,8 @@ licor = IMPORTLICORFILE("data/7.5.2024/licor.txt");
 licor = rmmissing(licor);
 
 
-%% Plot Raw Data
-
-figure();
-hold on;
-plot(daq.T, daq.CA,'DisplayName', 'ELT CO_2 A');
-plot(daq.T, daq.CB,'DisplayName', 'ELT CO_2 B');
-plot(daq.T, daq.TA,'DisplayName', 'TEMP A');
-plot(daq.T, daq.HA,'DisplayName', 'HUMID A');
-plot(daq.T, daq.TA,'DisplayName', 'TEMP B');
-plot(daq.T, daq.HA,'DisplayName', 'HUMID B');
-licor_tmp = rmoutliers(licor, 'percentile', [10, 90]);
-plot(licor_tmp.T, licor_tmp.C,'DisplayName', 'LICOR CO_2 (w/o 10% outliers)');
-xlabel("Time")
-ylabel("CO_2 [ppm]")
-legend();
-title("Closed Loop Calibration - Raw Sensor Data");
+%% Manual Offsets
+%licor.T = licor.T - hours(7);   % utc to daylight MST
 
 %% Remove Errors
 errorVals = [-999, 500, 2815, 64537, 231753, 65535, 2500, 2559];
@@ -54,8 +40,25 @@ for index = 1:2
     sensors{1,index} = sensor;
 end
 
-%% Retime, Smooth, and Remove Outliers
 
+%% Plot Raw Data
+
+figure();
+hold on;
+plot(daq.T, daq.CA,'DisplayName', 'ELT CO_2 A');
+plot(daq.T, daq.CB,'DisplayName', 'ELT CO_2 B');
+%plot(daq.T, daq.TA,'DisplayName', 'TEMP A');
+%plot(daq.T, daq.HA,'DisplayName', 'HUMID A');
+%plot(daq.T, daq.TA,'DisplayName', 'TEMP B');
+%plot(daq.T, daq.HA,'DisplayName', 'HUMID B');
+licor_tmp = rmoutliers(licor, 'percentile', [10, 90]);
+plot(licor_tmp.T, licor_tmp.C,'DisplayName', 'LICOR CO_2 (w/o 10% outliers)');
+xlabel("Time")
+ylabel("CO_2 [ppm]")
+legend();
+title("Closed Loop Calibration - Raw Sensor Data");
+
+%% Retime, Smooth, and Remove Outliers
 % section settings
 smooth_dt = minutes(1);
 retime_dt = seconds(5);
@@ -73,13 +76,14 @@ for index = 1:2
     sensors{1,index} = sensor;
 end
 
-
 % smooth and retime reference dataset
 licor = retime(licor,"regular", 'mean', 'TimeStep', retime_dt);
 licor = smoothdata(licor, 'movmean', smooth_dt);
 if (outlier_remove)
     licor = rmoutliers(licor, 'percentile', outlier_bounds);
 end
+
+%% Synchronize Datasets
 
 % sync sensors with reference
 for index = 1:2
@@ -89,7 +93,44 @@ for index = 1:2
     sensors{1,index} = sensor;
 end
 
-% plot datasets
+%% On-The-Fly Timestamp Fix
+
+for index = 1:2
+    sensor = sensors{1,index};
+
+    best_corr = 0;
+    opt_lag = -inf;
+
+    for lag = -height(sensor):height(sensor)
+        if lag > 0
+            shifted_C = [nan(lag, 1); sensor.(1)(1:end-lag)];
+        elseif lag < 0
+            shifted_C = [sensor.(1)(-lag+1:end); nan(-lag, 1)];
+        else
+            shifted_C = sensor.(1);
+        end
+        
+        % Calculate correlation, ignoring NaNs
+        valid_idx = ~isnan(sensor.C) & ~isnan(shifted_C);
+        if sum(valid_idx) > 100
+            current_corr = corr(sensor.C(valid_idx), shifted_C(valid_idx));
+            % Update best correlation and lag
+            if current_corr > best_corr
+                best_corr = current_corr;
+                opt_lag = lag;
+            end
+        end
+    end
+    
+    fields = 1:3;
+    for field = fields
+        sensor.(field) = SHIFTDATA(sensor.(field), opt_lag);
+    end
+    sensor = rmmissing(sensor);
+
+end
+
+%% Plot Smooth Data
 figure();
 sgtitle("Closed Loop Calibration - Processed Sensor Data");
 for index = 1:2
@@ -148,11 +189,11 @@ for index = 1:2
 
     fprintf("Sensor %d\n", index);
     fprintf("\tLinear\n")
-    fprintf("\t\tRMSE:\t%0.1f\n", lin_rmse);
-    fprintf("\t\tR^2:\t%0.3f\n", lin_r2);
+    fprintf("\t\tRMSE:\t%0.2f\n", lin_rmse);
+    fprintf("\t\tR^2:\t%0.5f\n", lin_r2);
     fprintf("\tNetwork\n")
-    fprintf("\t\tRMSE:\t%0.1f\n", net_rmse);
-    fprintf("\t\tR^2:\t%0.3f\n", net_r2);
+    fprintf("\t\tRMSE:\t%0.2f\n", net_rmse);
+    fprintf("\t\tR^2:\t%0.5f\n", net_r2);
 
     sensor = table2timetable(sensor);
     sensors{1,index} = sensor;
