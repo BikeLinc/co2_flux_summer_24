@@ -15,24 +15,23 @@ clc, clear, close all
 
 % import elt sensor dataset
 daq = IMPORTDAQFILE("data/7.8.2024/daq_7_8_24.csv");
-daq = [daq; IMPORTDAQFILE("data/7.8.2024/daq_7_9_24.csv")]
+daq = [daq; IMPORTDAQFILE("data/7.8.2024/daq_7_9_24.csv")];
 daq = rmmissing(daq);
 
 
 % from elt sensor dataset, grab per-sensor dataset
+% sensor 1 & 2 (CA & CB)
 sensors = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
 
 % import licor reference instrument dataset
 licor = IMPORTLICORFILE("data/7.8.2024/licor.txt");
 licor = rmmissing(licor);
 
-
-%% Manual Offsets
-%licor.T = licor.T - hours(7);   % utc to daylight MST
-
 %% Remove Errors
+
 errorVals = [-999, 500, 2815, 64537, 231753, 65535, 2500, 2559];
 
+% remove known error values from each dataset
 for index = 1:2
     sensor = sensors{1,index};
     sensor = timetable2table(sensor);
@@ -44,17 +43,11 @@ end
 
 
 %% Plot Raw Data
-
 figure();
-hold on;
+hold on; grid on;
 plot(daq.T, daq.CA,'DisplayName', 'ELT CO_2 A');
 plot(daq.T, daq.CB,'DisplayName', 'ELT CO_2 B');
-%plot(daq.T, daq.TA,'DisplayName', 'TEMP A');
-%plot(daq.T, daq.HA,'DisplayName', 'HUMID A');
-%plot(daq.T, daq.TA,'DisplayName', 'TEMP B');
-%plot(daq.T, daq.HA,'DisplayName', 'HUMID B');
-licor_tmp = rmoutliers(licor, 'percentile', [10, 90]);
-plot(licor_tmp.T, licor_tmp.C,'DisplayName', 'LICOR CO_2 (w/o 10% outliers)');
+plot(licor.T, licor.C,'DisplayName', 'LICOR CO_2');
 xlabel("Time")
 ylabel("CO_2 [ppm]")
 legend();
@@ -62,7 +55,7 @@ title("Closed Loop Calibration - Raw Sensor Data");
 
 %% Retime, Smooth, and Remove Outliers
 % section settings
-smooth_dt = minutes(1);
+smooth_dt = minutes(5);
 retime_dt = seconds(5);
 outlier_bounds = [10, 90];
 outlier_remove = true;
@@ -97,9 +90,10 @@ end
 
 %% On-The-Fly Timestamp Fix
 
+% look for timestamp lags, and automatically fix based on cross corelation
+% of lagged datasets
 for index = 1:2
     sensor = sensors{1,index};
-
     best_corr = 0;
     opt_lag = -inf;
 
@@ -112,24 +106,24 @@ for index = 1:2
             shifted_C = sensor.(1);
         end
         
-        % Calculate correlation, ignoring NaNs
+        % calculate correlation, ignoring NaNs
         valid_idx = ~isnan(sensor.C) & ~isnan(shifted_C);
         if sum(valid_idx) > 100
             current_corr = corr(sensor.C(valid_idx), shifted_C(valid_idx));
-            % Update best correlation and lag
+            % update best correlation and lag
             if current_corr > best_corr
                 best_corr = current_corr;
                 opt_lag = lag;
             end
         end
     end
-    
+
+    % apply best lag and shift dataset
     fields = 1:3;
     for field = fields
         sensor.(field) = SHIFTDATA(sensor.(field), opt_lag);
     end
     sensor = rmmissing(sensor);
-
 end
 
 %% Plot Smooth Data
@@ -138,7 +132,7 @@ sgtitle("Closed Loop Calibration - Processed Sensor Data");
 for index = 1:2
     subplot(1,2,index);
     sensor = sensors{1,index};
-    hold on;
+    hold on; grid on;
     plot(sensor, 1, 'DisplayName', 'ELT');
     plot(sensor, 4, 'DisplayName','LICOR');
     xlabel("Time");
@@ -148,10 +142,8 @@ for index = 1:2
 end
 
 %% Generate Calibrations
-
 fprintf("Closed Loop Calibration - Calibration Results\n")
 models = cell(2,2);
-figure();
 for index = 1:2
     sensor = sensors{1,index};
     sensor = timetable2table(sensor);
@@ -180,15 +172,26 @@ for index = 1:2
 
     % plot metrics
     figure()
-    title("Closed Loop Calibration - Calibration Model Response - Sensor " + index)
-    hold on;
+    
+    subplot(2,1,1)
+    hold on; grid on;
     plot(testX(:,1), testY, 'r-.', 'DisplayName', "Ground Truth (LICOR)");
     plot(testX(:,1), lin_pred,'gs', 'DisplayName', "Linear Model Response");
     plot(testX(:,1), net_pred,'mo', 'DisplayName', "Neural Model Response");
     legend();
     xlabel("X CO_2 [ppm]")
     ylabel("Y CO_2 [ppm]")
+    subplot(2,1,2)
+    hold on; grid on;
+    yline(0, 'r-.', 'DisplayName', "Ground Truth (LICOR)")
+    plot(testX(:,1), lin_pred-testY,'gs', 'DisplayName', "Linear Model Response Residuals");
+    plot(testX(:,1), net_pred-testY,'mo', 'DisplayName', "Neural Model Response Residuals");
+    legend();
+    xlabel("X CO_2 [ppm]")
+    ylabel("Y CO_2 Residuals [ppm]")
+    sgtitle("Closed Loop Calibration - Calibration Model Response - Sensor " + index)
 
+    % print metrics
     fprintf("Sensor %d\n", index);
     fprintf("\tLinear\n")
     fprintf("\t\tRMSE:\t%0.2f\n", lin_rmse);
@@ -206,11 +209,15 @@ end
 
 sensor_id = "C";
 training_id = "CL";
-model_1 = models{:,1};
-save("model/"+sensor_id+"_"+training_id+"_"+datestr(datetime("today")),"model_1");
+model_1_lin = models{1,1};
+model_1_net = models{2,1};
+save("model/"+sensor_id+"-"+training_id+"-linear-"+datestr(datetime("today")),"model_1_lin");
+save("model/"+sensor_id+"-"+training_id+"-net-"+datestr(datetime("today")),"model_1_net");
 
 sensor_id = "E";
 training_id = "CL";
-model_2 = models{:,2};
-save("model/"+sensor_id+"_"+training_id+"_"+datestr(datetime("today")),"model_2");
+model_2_lin = models{1,2};
+model_2_net = models{2,2};
+save("model/"+sensor_id+"-"+training_id+"-linear-"+datestr(datetime("today")),"model_2_lin");
+save("model/"+sensor_id+"-"+training_id+"-net-"+datestr(datetime("today")),"model_2_net");
 
