@@ -39,7 +39,8 @@ opts.ExtraColumnsRule = "ignore";
 opts.EmptyLineRule = "read";
 
 % Specify variable properties06/16/24 11:18:26
-opts = setvaropts(opts, "T", "InputFormat", "MM/dd/yy HH:mm:ss");
+%opts = setvaropts(opts, "T", "InputFormat", "MM/dd/yy HH:mm:ss");
+opts = setvaropts(opts, "T", "InputFormat", 'yyyy-MM-dd''T''HH:mm:ss');
 
 % Import the data
 daq = readtable(filename, opts);

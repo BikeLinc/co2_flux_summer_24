@@ -14,14 +14,16 @@ clc, clear, close all
 %% Load Data
 
 % import elt sensor dataset
-daq = IMPORTDAQFILE("data/7.5.2024/daq_TS_FIX.csv");
+daq = IMPORTDAQFILE("data/7.8.2024/daq_7_8_24.csv");
+daq = [daq; IMPORTDAQFILE("data/7.8.2024/daq_7_9_24.csv")]
 daq = rmmissing(daq);
+
 
 % from elt sensor dataset, grab per-sensor dataset
 sensors = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
 
 % import licor reference instrument dataset
-licor = IMPORTLICORFILE("data/7.5.2024/licor.txt");
+licor = IMPORTLICORFILE("data/7.8.2024/licor.txt");
 licor = rmmissing(licor);
 
 
@@ -200,5 +202,15 @@ for index = 1:2
 end
 
 
+%% Export Models
 
+sensor_id = "C";
+training_id = "CL";
+model_1 = models{:,1};
+save("model/"+sensor_id+"_"+training_id+"_"+datestr(datetime("today")),"model_1");
+
+sensor_id = "E";
+training_id = "CL";
+model_2 = models{:,2};
+save("model/"+sensor_id+"_"+training_id+"_"+datestr(datetime("today")),"model_2");
 
