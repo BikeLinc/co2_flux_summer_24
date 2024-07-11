@@ -1,0 +1,615 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>analysis</title><meta name="generator" content="MATLAB 9.12"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2024-05-23"><meta name="DC.source" content="analysis.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#1">Flux Test Data Analysis - 5/21/2024</a></li><li><a href="#2">Helper Functions</a></li><li><a href="#3">Choose Dataset</a></li><li><a href="#4">Import Datasets</a></li><li><a href="#5">Correct Timestamps (Only If DAQ Lost RTC Data)</a></li><li><a href="#6">Find Cross-Corelation Lag &amp; Offset Datasets</a></li><li><a href="#7">Calibrate Sensors</a></li><li><a href="#8">Seperate Datasets into Set Points</a></li><li><a href="#9">Smooth Data</a></li></ul></div><h2 id="1">Flux Test Data Analysis - 5/21/2024</h2><pre class="codeinput">clc, clear, close <span class="string">all</span>
+</pre><h2 id="2">Helper Functions</h2><pre class="codeinput"><span class="comment">% Chamber Surface Area</span>
+As = 0.064844702; <span class="comment">% [m^2]</span>
+
+<span class="comment">% Environment Assumptions</span>
+P = 101325; <span class="comment">% [Pa]</span>
+T = 293.15; <span class="comment">% [K]</span>
+
+<span class="comment">% Unit Conversion Functions</span>
+ppm_to_mol = @(ppm) (ppm*P)/(1e6*8.314*T);  <span class="comment">% ppm to mol/m^3</span>
+mol_to_ppm = @(mol) (1e6*8.314*mol*T)/P;    <span class="comment">% mol/m^3 to ppm</span>
+lpm_to_cms = @(lpm) lpm/60000;              <span class="comment">% liters per min to m^3 per min</span>
+cms_to_lpm = @(cms) cms*60000;              <span class="comment">% m^3 per min to liters per min</span>
+</pre><h2 id="3">Choose Dataset</h2><pre class="codeinput">dataset = <span class="string">"5.21"</span>;
+</pre><h2 id="4">Import Datasets</h2><pre class="codeinput"><span class="comment">% import licor dataset</span>
+licor = IMPORTLICORFILE(<span class="string">'data/'</span>+dataset+<span class="string">'/licor.data'</span>);
+
+<span class="comment">% import daq dataset</span>
+daq = IMPORTDAQFILE(<span class="string">'data/'</span>+dataset+<span class="string">'/daq.txt'</span>);
+daq.Q = daq.Q/1000; <span class="comment">% set from ccm to lpm</span>
+
+<span class="comment">% import flux dataset</span>
+map = readtable(<span class="string">"data/mapping.csv"</span>);
+
+<span class="comment">% depending on dataset folder selected, map delivered fluxes</span>
+dataset_idx = table2array(map(:,1)) == double(dataset);
+map = map(dataset_idx,:);
+daqoffset = min(table2array(map(:,8)));
+</pre><h2 id="5">Correct Timestamps (Only If DAQ Lost RTC Data)</h2><pre class="codeinput"><span class="comment">% if daq has timestamp issue, do offset with start of test sequence</span>
+daq.T = timeofday(daq.T) + daqoffset;
+</pre><h2 id="6">Find Cross-Corelation Lag &amp; Offset Datasets</h2><pre class="codeinput"><span class="comment">% synchronize dataset, resample at 5-seconds per datapoint</span>
+corr_data = synchronize(licor, daq, <span class="string">'regular'</span>, <span class="string">'mean'</span>,<span class="string">'TimeStep'</span>, seconds(5));
+corr_data_c = corr_data.C;
+corr_data_cb = corr_data.CB;
+
+<span class="comment">% computer lag-based corelation coefficient</span>
+opt_lag = 0;
+opt_corr = -inf;
+
+<span class="keyword">for</span> lag = -850:850
+
+    <span class="comment">% offset dataset</span>
+    <span class="keyword">if</span> lag &gt; 0
+        corr_data_cb_shifted = [nan(lag, 1); corr_data_cb(1:end-lag)];
+    <span class="keyword">elseif</span> lag &lt; 0
+        corr_data_cb_shifted = [corr_data_cb(-lag+1:end); nan(-lag, 1)];
+    <span class="keyword">else</span>
+        corr_data_cb_shifted = corr_data_cb;
+    <span class="keyword">end</span>
+
+    <span class="comment">% calculation corellation</span>
+    non_nan_indices = ~isnan(corr_data_c) &amp; ~isnan(corr_data_cb_shifted);
+    current_corr = corr(corr_data_c(non_nan_indices), corr_data_cb_shifted(non_nan_indices));
+
+    <span class="comment">% update best corelation</span>
+    <span class="keyword">if</span> current_corr &gt; opt_corr
+        opt_corr = current_corr;
+        opt_lag = lag;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+
+<span class="comment">% Shift the data with the best lag</span>
+<span class="keyword">if</span> opt_lag &gt; 0
+    shifted_cb = [nan(opt_lag, 1); corr_data.CB(1:end-opt_lag)];
+    shifted_ca = [nan(opt_lag, 1); corr_data.CA(1:end-opt_lag)];
+    shifted_ta = [nan(opt_lag, 1); corr_data.TA(1:end-opt_lag)];
+    shifted_tb = [nan(opt_lag, 1); corr_data.TB(1:end-opt_lag)];
+    shifted_ha = [nan(opt_lag, 1); corr_data.HA(1:end-opt_lag)];
+    shifted_hb = [nan(opt_lag, 1); corr_data.HB(1:end-opt_lag)];
+    shifted_q = [nan(opt_lag, 1); corr_data.Q(1:end-opt_lag)];
+<span class="keyword">elseif</span> opt_lag &lt; 0
+    shifted_cb = [corr_data.CB(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_ca = [corr_data.CA(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_ta = [corr_data.TA(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_tb = [corr_data.TB(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_ha = [corr_data.HA(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_hb = [corr_data.HB(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_q = [corr_data.Q(-opt_lag+1:end); nan(-opt_lag, 1)];
+<span class="keyword">else</span>
+    shifted_cb = corr_data.CB;
+    shifted_ca = corr_data.CA;
+    shifted_ta = corr_data.TA;
+    shifted_tb = corr_data.TB;
+    shifted_ha = corr_data.HA;
+    shifted_hb = corr_data.HB;
+    shifted_q = corr_data.Q;
+<span class="keyword">end</span>
+
+
+<span class="comment">% update data</span>
+corrected_corr_data = corr_data;
+corrected_corr_data.CB = shifted_cb;
+corrected_corr_data.CA = shifted_ca;
+corrected_corr_data.TA = shifted_ta;
+corrected_corr_data.TB = shifted_tb;
+corrected_corr_data.HA = shifted_ha;
+corrected_corr_data.HB = shifted_hb;
+corrected_corr_data.Q = shifted_q;
+corrected_corr_data = rmmissing(corrected_corr_data);
+
+figure();
+hold <span class="string">on</span>;
+plot(corrected_corr_data.T, corrected_corr_data.C, <span class="string">'b'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Raw LICOR'</span>);
+plot(corrected_corr_data.T, corrected_corr_data.CB, <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected DAQ Chamber'</span>);
+plot(corrected_corr_data.T, corrected_corr_data.CA, <span class="string">'r'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected DAQ Ambient'</span>);
+plot(corr_data.T, corr_data.CB, <span class="string">'c'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Raw DAQ Chamber'</span>)
+plot(corr_data.T, corr_data.CA, <span class="string">'m'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Raw DAQ Ambient'</span>)
+ylabel(<span class="string">'CO_2 [ppm]'</span>);
+legend();
+title([<span class="string">"Automatic Timestamp Correction"</span> <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+xlabel(<span class="string">'Time'</span>);
+grid <span class="string">on</span>
+hold <span class="string">off</span>;
+corr_data = corrected_corr_data;
+</pre><img vspace="5" hspace="5" src="analysis_01.png" alt=""> <h2 id="7">Calibrate Sensors</h2><pre class="codeinput">load(<span class="string">'calib.mat'</span>)
+
+corr_data.CB_CALIB = predict(lin_rega, [corr_data.CB, corr_data.TB, corr_data.HB]);
+corr_data.CA_CALIB = predict(lin_regb, [corr_data.CA, corr_data.TA, corr_data.HA]);
+corr_data.C_CALIB = corr_data.C.*0.9996-5.5211;
+corr_data.Q_CALIB = corr_data.Q*1.227+0.0143;
+<span class="comment">%corr_data.CB_CALIB = ann_regb([corr_data.CB, corr_data.TB, corr_data.HB]')';</span>
+<span class="comment">%corr_data.CA_CALIB = ann_rega([corr_data.CA, corr_data.TA, corr_data.HA]')';</span>
+
+figure();
+hold <span class="string">on</span>;
+plot(corr_data.T, corr_data.CB_CALIB, <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected DAQ Chamber'</span>);
+plot(corr_data.T, corr_data.CA_CALIB, <span class="string">'r'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected DAQ Ambient'</span>);
+plot(corr_data.T, corr_data.C_CALIB, <span class="string">'b'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected LICOR'</span>)
+plot(corr_data.T, corr_data.CB, <span class="string">'c'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ Chamber'</span>)
+plot(corr_data.T, corr_data.CA, <span class="string">'m'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ Ambient'</span>)
+plot(corr_data.T, corr_data.C, <span class="string">'k'</span>, <span class="string">'DisplayName'</span>, <span class="string">'LICOR'</span>)
+ylabel(<span class="string">'CO_2 [ppm]'</span>);
+legend();
+title([<span class="string">"Calibrations Applied to Flux Dataset"</span> <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+xlabel(<span class="string">'Time'</span>);
+hold <span class="string">off</span>;
+</pre><img vspace="5" hspace="5" src="analysis_02.png" alt=""> <h2 id="8">Seperate Datasets into Set Points</h2><pre class="codeinput">data = [];
+<span class="keyword">for</span> dataset_idx = 1:height(map)
+
+    <span class="comment">% get timestamps</span>
+    tStart = map{dataset_idx, 8};
+    tStartLicor = map{dataset_idx, 10};
+    tEnd = map{dataset_idx, 9};
+    tEndLicor = map{dataset_idx, 11};
+
+    <span class="comment">% select setpoint</span>
+    data_idx = corr_data.T &lt; tEndLicor  &amp; corr_data.T &gt; tStartLicor;
+    dataTmp = corr_data(data_idx, :);
+    data = dataTmp;
+
+    <span class="comment">% apply moving average</span>
+    data.CB = movmean(data.CB, 6);
+    data.CA = movmean(data.CA, 6);
+
+    <span class="comment">% plot raw set-point dataset</span>
+    figure();
+    hold <span class="string">on</span>
+    plot(data.T, data.C, <span class="string">'b'</span>, <span class="string">'DisplayName'</span>, <span class="string">'LICOR Reference'</span>)
+    plot(data.T, data.CB, <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ Chamber'</span>)
+    plot(data.T, data.CA, <span class="string">'r-'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ Ambient'</span>)
+    ylabel(<span class="string">'CO_2 [ppm]'</span>);
+    legend();
+    title([<span class="string">"Raw Data - Delivering "</span> + map{dataset_idx, 4} + <span class="string">" &#956;mol/m^2/s"</span>, <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+    xlabel(<span class="string">'Time'</span>);
+    hold <span class="string">off</span>
+
+    <span class="comment">% plot calibrated set-point dataset</span>
+    figure();
+    hold <span class="string">on</span>
+    plot(data.T, data.C_CALIB, <span class="string">'b'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected LICOR Reference'</span>)
+    plot(data.T, data.CB_CALIB, <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected DAQ Chamber'</span>)
+    plot(data.T, data.CA_CALIB, <span class="string">'r-'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Corrected DAQ Ambient'</span>)
+    ylabel(<span class="string">'CO_2 [ppm]'</span>);
+    legend();
+    title([<span class="string">"Calibrated Data - Delivering "</span> + map{dataset_idx, 4} + <span class="string">" &#956;mol/m^2/s"</span>, <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+    xlabel(<span class="string">'Time'</span>);
+    hold <span class="string">off</span>
+
+    <span class="comment">% calculate floor dataset, because we are looking for offsets</span>
+    data.C_FLOOR = data.C_CALIB - min(data.C_CALIB);
+    data.CB_FLOOR = data.CB_CALIB - min(data.CB_CALIB);
+    data.CA_FLOOR = data.CA_CALIB - min(data.CA_CALIB);
+
+    <span class="comment">% plot floored dataset</span>
+    figure();
+    hold <span class="string">on</span>;
+    plot(data.T, data.CB_FLOOR, <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ CB'</span>);
+    plot(data.T, data.CA_FLOOR, <span class="string">'r'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ CA'</span>);
+    plot(data.T, data.C_FLOOR, <span class="string">'c'</span>, <span class="string">'DisplayName'</span>, <span class="string">'LICOR'</span>)
+    ylabel(<span class="string">'CO_2 [ppm]'</span>);
+    legend();
+    title([<span class="string">"Floored Data - Delivering "</span> + map{dataset_idx, 4} + <span class="string">" &#956;mol/m^2/s"</span>, <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+    xlabel(<span class="string">'Time'</span>);
+    hold <span class="string">off</span>;
+
+    <span class="comment">% calculate steady state indices</span>
+    thresh = 0.05;
+    cb_ss = find(abs(diff(movmean(data.CB_CALIB, 100)))&lt;thresh);
+    c_ss = find(abs(diff(movmean(data.C_CALIB, 100)))&lt;thresh);
+
+    <span class="comment">% plot steady state indices</span>
+    figure();
+    hold <span class="string">on</span>;
+    plot(data.T(c_ss), data.CB_CALIB(c_ss), <span class="string">'gd'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Steady-State DAQ Chamber'</span>);
+    plot(data.T(cb_ss), data.CA_CALIB(cb_ss), <span class="string">'rd'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Steady-State DAQ Ambient'</span>);
+    plot(data.T(cb_ss), data.C_CALIB(cb_ss), <span class="string">'cd'</span>, <span class="string">'DisplayName'</span>, <span class="string">'Steady-State LICOR'</span>)
+    plot(data.T, data.CB_CALIB, <span class="string">'g.'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ Chamber'</span>);
+    plot(data.T, data.CA_CALIB, <span class="string">'r.'</span>, <span class="string">'DisplayName'</span>, <span class="string">'DAQ Chamber'</span>);
+    plot(data.T, data.C_CALIB, <span class="string">'c.'</span>, <span class="string">'DisplayName'</span>, <span class="string">'LICOR'</span>)
+    ylabel(<span class="string">'CO_2 [ppm]'</span>);
+    legend();
+    title([<span class="string">"Steady State Indices - Delivering "</span> + map{dataset_idx, 4} + <span class="string">" &#956;mol/m^2/s"</span>, <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+    xlabel(<span class="string">'Time'</span>);
+    hold <span class="string">off</span>;
+
+    <span class="comment">% calculate flux</span>
+    data.F = ((lpm_to_cms(data.Q_CALIB).*ppm_to_mol(data.CB_CALIB-data.CA_CALIB))./As).*1e6;
+    data.F_FLOOR = ((lpm_to_cms(data.Q_CALIB).*ppm_to_mol(data.CB_FLOOR-data.CA_FLOOR))./As).*1e6;
+    data.F_LICOR = ((lpm_to_cms(data.Q_CALIB).*ppm_to_mol(data.C_FLOOR))./As).*1e6;
+
+    f_mean_ss = mean(data.F(cb_ss));
+    f_floor_mean_ss = mean(data.F_FLOOR(cb_ss));
+    f_licor_mean_ss = mean(data.F_LICOR(cb_ss));
+    f_std_ss = std(data.F(cb_ss));
+    f_floor_std_ss = std(data.F_FLOOR(cb_ss));
+    f_licor_std_ss = std(data.F_LICOR(cb_ss));
+
+    <span class="comment">% plot fluxes</span>
+    figure();
+    hold <span class="string">on</span>;
+    plot(data.T(cb_ss), data.F(cb_ss), <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">"SS Flux, &#956;: "</span> + f_mean_ss + <span class="string">" &#963;: "</span> + f_std_ss + <span class="string">" &#956;mol/m^2/s"</span>);
+    plot(data.T(c_ss), data.F_LICOR(c_ss), <span class="string">'r'</span>, <span class="string">'DisplayName'</span>, <span class="string">"SS Flux FLOOR LICOR, &#956;: "</span> + f_licor_mean_ss + <span class="string">" &#963;: "</span> + f_licor_std_ss + <span class="string">" &#956;mol/m^2/s"</span>);
+    plot(data.T(c_ss), data.F_FLOOR(c_ss), <span class="string">'c'</span>, <span class="string">'DisplayName'</span>, <span class="string">"SS Flux FLOOR, &#956;: "</span> + f_floor_mean_ss + <span class="string">" &#963;: "</span> + f_floor_std_ss + <span class="string">" &#956;mol/m^2/s"</span>);
+    yline(map{dataset_idx, 4}, <span class="string">'k--'</span>, <span class="string">'DisplayName'</span>, <span class="string">"Delivered Flux"</span>)
+    ylabel(<span class="string">'CO_2 Flux &#956;mol/m^2/s'</span>);
+    legend();
+    title([<span class="string">"Steady State Flux Results - Delivering "</span> + map{dataset_idx, 4} + <span class="string">" &#956;mol/m^2/s"</span>, <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+    xlabel(<span class="string">'Time'</span>);
+    hold <span class="string">off</span>;
+
+    <span class="comment">% plot fluxes</span>
+    figure();
+    hold <span class="string">on</span>;
+    plot(data.T, data.F, <span class="string">'g'</span>, <span class="string">'DisplayName'</span>, <span class="string">"Flux"</span>);
+    plot(data.T, data.F_LICOR, <span class="string">'r'</span>, <span class="string">'DisplayName'</span>, <span class="string">"Flux FLOOR LICOR"</span>);
+    plot(data.T, data.F_FLOOR, <span class="string">'c'</span>, <span class="string">'DisplayName'</span>, <span class="string">"Flux FLOOR"</span>);
+    yline(map{dataset_idx, 4}, <span class="string">'k--'</span>, <span class="string">'DisplayName'</span>, <span class="string">"Delivered Flux"</span>)
+    ylabel(<span class="string">'CO_2 Flux &#956;mol/m^2/s'</span>);
+    legend();
+    title([<span class="string">"Flux Results - Delivering "</span> + map{dataset_idx, 4} + <span class="string">" &#956;mol/m^2/s"</span>, <span class="string">"[DATASET "</span> + dataset + <span class="string">"]"</span>]);
+    xlabel(<span class="string">'Time'</span>);
+    hold <span class="string">off</span>;
+
+<span class="keyword">end</span>
+</pre><img vspace="5" hspace="5" src="analysis_03.png" alt=""> <img vspace="5" hspace="5" src="analysis_04.png" alt=""> <img vspace="5" hspace="5" src="analysis_05.png" alt=""> <img vspace="5" hspace="5" src="analysis_06.png" alt=""> <img vspace="5" hspace="5" src="analysis_07.png" alt=""> <img vspace="5" hspace="5" src="analysis_08.png" alt=""> <img vspace="5" hspace="5" src="analysis_09.png" alt=""> <img vspace="5" hspace="5" src="analysis_10.png" alt=""> <img vspace="5" hspace="5" src="analysis_11.png" alt=""> <img vspace="5" hspace="5" src="analysis_12.png" alt=""> <img vspace="5" hspace="5" src="analysis_13.png" alt=""> <img vspace="5" hspace="5" src="analysis_14.png" alt=""> <img vspace="5" hspace="5" src="analysis_15.png" alt=""> <img vspace="5" hspace="5" src="analysis_16.png" alt=""> <img vspace="5" hspace="5" src="analysis_17.png" alt=""> <img vspace="5" hspace="5" src="analysis_18.png" alt=""> <img vspace="5" hspace="5" src="analysis_19.png" alt=""> <img vspace="5" hspace="5" src="analysis_20.png" alt=""> <img vspace="5" hspace="5" src="analysis_21.png" alt=""> <h2 id="9">Smooth Data</h2><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2022a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% Flux Test Data Analysis - 5/21/2024
+%
+%
+
+clc, clear, close all
+
+%% Helper Functions
+
+% Chamber Surface Area
+As = 0.064844702; % [m^2]
+
+% Environment Assumptions
+P = 101325; % [Pa]
+T = 293.15; % [K]
+
+% Unit Conversion Functions
+ppm_to_mol = @(ppm) (ppm*P)/(1e6*8.314*T);  % ppm to mol/m^3
+mol_to_ppm = @(mol) (1e6*8.314*mol*T)/P;    % mol/m^3 to ppm
+lpm_to_cms = @(lpm) lpm/60000;              % liters per min to m^3 per min
+cms_to_lpm = @(cms) cms*60000;              % m^3 per min to liters per min
+
+%% Choose Dataset
+
+dataset = "5.21";
+
+%% Import Datasets
+
+% import licor dataset
+licor = IMPORTLICORFILE('data/'+dataset+'/licor.data');
+
+% import daq dataset
+daq = IMPORTDAQFILE('data/'+dataset+'/daq.txt');
+daq.Q = daq.Q/1000; % set from ccm to lpm
+
+% import flux dataset
+map = readtable("data/mapping.csv");
+
+% depending on dataset folder selected, map delivered fluxes
+dataset_idx = table2array(map(:,1)) == double(dataset);
+map = map(dataset_idx,:);
+daqoffset = min(table2array(map(:,8)));
+
+%% Correct Timestamps (Only If DAQ Lost RTC Data)
+
+% if daq has timestamp issue, do offset with start of test sequence
+daq.T = timeofday(daq.T) + daqoffset;
+
+%% Find Cross-Corelation Lag & Offset Datasets
+
+% synchronize dataset, resample at 5-seconds per datapoint
+corr_data = synchronize(licor, daq, 'regular', 'mean','TimeStep', seconds(5));
+corr_data_c = corr_data.C;
+corr_data_cb = corr_data.CB;
+
+% computer lag-based corelation coefficient
+opt_lag = 0;
+opt_corr = -inf;
+
+for lag = -850:850
+    
+    % offset dataset
+    if lag > 0
+        corr_data_cb_shifted = [nan(lag, 1); corr_data_cb(1:end-lag)];
+    elseif lag < 0
+        corr_data_cb_shifted = [corr_data_cb(-lag+1:end); nan(-lag, 1)];
+    else
+        corr_data_cb_shifted = corr_data_cb;
+    end
+    
+    % calculation corellation
+    non_nan_indices = ~isnan(corr_data_c) & ~isnan(corr_data_cb_shifted);
+    current_corr = corr(corr_data_c(non_nan_indices), corr_data_cb_shifted(non_nan_indices));
+
+    % update best corelation
+    if current_corr > opt_corr
+        opt_corr = current_corr;
+        opt_lag = lag;
+    end
+end
+
+
+% Shift the data with the best lag
+if opt_lag > 0
+    shifted_cb = [nan(opt_lag, 1); corr_data.CB(1:end-opt_lag)];
+    shifted_ca = [nan(opt_lag, 1); corr_data.CA(1:end-opt_lag)];
+    shifted_ta = [nan(opt_lag, 1); corr_data.TA(1:end-opt_lag)];
+    shifted_tb = [nan(opt_lag, 1); corr_data.TB(1:end-opt_lag)];
+    shifted_ha = [nan(opt_lag, 1); corr_data.HA(1:end-opt_lag)];
+    shifted_hb = [nan(opt_lag, 1); corr_data.HB(1:end-opt_lag)];
+    shifted_q = [nan(opt_lag, 1); corr_data.Q(1:end-opt_lag)];
+elseif opt_lag < 0
+    shifted_cb = [corr_data.CB(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_ca = [corr_data.CA(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_ta = [corr_data.TA(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_tb = [corr_data.TB(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_ha = [corr_data.HA(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_hb = [corr_data.HB(-opt_lag+1:end); nan(-opt_lag, 1)];
+    shifted_q = [corr_data.Q(-opt_lag+1:end); nan(-opt_lag, 1)];
+else
+    shifted_cb = corr_data.CB;
+    shifted_ca = corr_data.CA;
+    shifted_ta = corr_data.TA;
+    shifted_tb = corr_data.TB;
+    shifted_ha = corr_data.HA;
+    shifted_hb = corr_data.HB;
+    shifted_q = corr_data.Q;
+end
+
+
+% update data
+corrected_corr_data = corr_data;
+corrected_corr_data.CB = shifted_cb;
+corrected_corr_data.CA = shifted_ca;
+corrected_corr_data.TA = shifted_ta;
+corrected_corr_data.TB = shifted_tb;
+corrected_corr_data.HA = shifted_ha;
+corrected_corr_data.HB = shifted_hb;
+corrected_corr_data.Q = shifted_q;
+corrected_corr_data = rmmissing(corrected_corr_data);
+    
+figure();
+hold on;
+plot(corrected_corr_data.T, corrected_corr_data.C, 'b', 'DisplayName', 'Raw LICOR');
+plot(corrected_corr_data.T, corrected_corr_data.CB, 'g', 'DisplayName', 'Corrected DAQ Chamber');
+plot(corrected_corr_data.T, corrected_corr_data.CA, 'r', 'DisplayName', 'Corrected DAQ Ambient');
+plot(corr_data.T, corr_data.CB, 'c', 'DisplayName', 'Raw DAQ Chamber')
+plot(corr_data.T, corr_data.CA, 'm', 'DisplayName', 'Raw DAQ Ambient')
+ylabel('CO_2 [ppm]');
+legend();
+title(["Automatic Timestamp Correction" "[DATASET " + dataset + "]"]);
+xlabel('Time');
+grid on
+hold off;
+corr_data = corrected_corr_data;
+
+%% Calibrate Sensors
+
+load('calib.mat')
+
+corr_data.CB_CALIB = predict(lin_rega, [corr_data.CB, corr_data.TB, corr_data.HB]);
+corr_data.CA_CALIB = predict(lin_regb, [corr_data.CA, corr_data.TA, corr_data.HA]);
+corr_data.C_CALIB = corr_data.C.*0.9996-5.5211;
+corr_data.Q_CALIB = corr_data.Q*1.227+0.0143;
+%corr_data.CB_CALIB = ann_regb([corr_data.CB, corr_data.TB, corr_data.HB]')';
+%corr_data.CA_CALIB = ann_rega([corr_data.CA, corr_data.TA, corr_data.HA]')';
+
+figure();
+hold on;
+plot(corr_data.T, corr_data.CB_CALIB, 'g', 'DisplayName', 'Corrected DAQ Chamber');
+plot(corr_data.T, corr_data.CA_CALIB, 'r', 'DisplayName', 'Corrected DAQ Ambient');
+plot(corr_data.T, corr_data.C_CALIB, 'b', 'DisplayName', 'Corrected LICOR')
+plot(corr_data.T, corr_data.CB, 'c', 'DisplayName', 'DAQ Chamber')
+plot(corr_data.T, corr_data.CA, 'm', 'DisplayName', 'DAQ Ambient')
+plot(corr_data.T, corr_data.C, 'k', 'DisplayName', 'LICOR')
+ylabel('CO_2 [ppm]');
+legend();
+title(["Calibrations Applied to Flux Dataset" "[DATASET " + dataset + "]"]);
+xlabel('Time');
+hold off;
+
+
+%% Seperate Datasets into Set Points
+
+data = [];
+for dataset_idx = 1:height(map)
+    
+    % get timestamps
+    tStart = map{dataset_idx, 8};
+    tStartLicor = map{dataset_idx, 10};
+    tEnd = map{dataset_idx, 9};
+    tEndLicor = map{dataset_idx, 11};
+    
+    % select setpoint
+    data_idx = corr_data.T < tEndLicor  & corr_data.T > tStartLicor;
+    dataTmp = corr_data(data_idx, :);
+    data = dataTmp;
+    
+    % apply moving average
+    data.CB = movmean(data.CB, 6);
+    data.CA = movmean(data.CA, 6);
+    
+    % plot raw set-point dataset
+    figure();
+    hold on
+    plot(data.T, data.C, 'b', 'DisplayName', 'LICOR Reference')
+    plot(data.T, data.CB, 'g', 'DisplayName', 'DAQ Chamber')
+    plot(data.T, data.CA, 'r-', 'DisplayName', 'DAQ Ambient')
+    ylabel('CO_2 [ppm]');
+    legend();
+    title(["Raw Data - Delivering " + map{dataset_idx, 4} + " μmol/m^2/s", "[DATASET " + dataset + "]"]);
+    xlabel('Time');
+    hold off
+    
+    % plot calibrated set-point dataset
+    figure();
+    hold on
+    plot(data.T, data.C_CALIB, 'b', 'DisplayName', 'Corrected LICOR Reference')
+    plot(data.T, data.CB_CALIB, 'g', 'DisplayName', 'Corrected DAQ Chamber')
+    plot(data.T, data.CA_CALIB, 'r-', 'DisplayName', 'Corrected DAQ Ambient')
+    ylabel('CO_2 [ppm]');
+    legend();
+    title(["Calibrated Data - Delivering " + map{dataset_idx, 4} + " μmol/m^2/s", "[DATASET " + dataset + "]"]);
+    xlabel('Time');
+    hold off
+
+    % calculate floor dataset, because we are looking for offsets
+    data.C_FLOOR = data.C_CALIB - min(data.C_CALIB);
+    data.CB_FLOOR = data.CB_CALIB - min(data.CB_CALIB);
+    data.CA_FLOOR = data.CA_CALIB - min(data.CA_CALIB);
+
+    % plot floored dataset
+    figure();
+    hold on;
+    plot(data.T, data.CB_FLOOR, 'g', 'DisplayName', 'DAQ CB');
+    plot(data.T, data.CA_FLOOR, 'r', 'DisplayName', 'DAQ CA');
+    plot(data.T, data.C_FLOOR, 'c', 'DisplayName', 'LICOR')
+    ylabel('CO_2 [ppm]');
+    legend();
+    title(["Floored Data - Delivering " + map{dataset_idx, 4} + " μmol/m^2/s", "[DATASET " + dataset + "]"]);
+    xlabel('Time');
+    hold off;
+    
+    % calculate steady state indices
+    thresh = 0.05;
+    cb_ss = find(abs(diff(movmean(data.CB_CALIB, 100)))<thresh);
+    c_ss = find(abs(diff(movmean(data.C_CALIB, 100)))<thresh);
+    
+    % plot steady state indices
+    figure();
+    hold on;
+    plot(data.T(c_ss), data.CB_CALIB(c_ss), 'gd', 'DisplayName', 'Steady-State DAQ Chamber');
+    plot(data.T(cb_ss), data.CA_CALIB(cb_ss), 'rd', 'DisplayName', 'Steady-State DAQ Ambient');
+    plot(data.T(cb_ss), data.C_CALIB(cb_ss), 'cd', 'DisplayName', 'Steady-State LICOR')
+    plot(data.T, data.CB_CALIB, 'g.', 'DisplayName', 'DAQ Chamber');
+    plot(data.T, data.CA_CALIB, 'r.', 'DisplayName', 'DAQ Chamber');
+    plot(data.T, data.C_CALIB, 'c.', 'DisplayName', 'LICOR')
+    ylabel('CO_2 [ppm]');
+    legend();
+    title(["Steady State Indices - Delivering " + map{dataset_idx, 4} + " μmol/m^2/s", "[DATASET " + dataset + "]"]);
+    xlabel('Time');
+    hold off;
+    
+    % calculate flux
+    data.F = ((lpm_to_cms(data.Q_CALIB).*ppm_to_mol(data.CB_CALIB-data.CA_CALIB))./As).*1e6;
+    data.F_FLOOR = ((lpm_to_cms(data.Q_CALIB).*ppm_to_mol(data.CB_FLOOR-data.CA_FLOOR))./As).*1e6;
+    data.F_LICOR = ((lpm_to_cms(data.Q_CALIB).*ppm_to_mol(data.C_FLOOR))./As).*1e6;
+
+    f_mean_ss = mean(data.F(cb_ss));
+    f_floor_mean_ss = mean(data.F_FLOOR(cb_ss));
+    f_licor_mean_ss = mean(data.F_LICOR(cb_ss));
+    f_std_ss = std(data.F(cb_ss));
+    f_floor_std_ss = std(data.F_FLOOR(cb_ss));
+    f_licor_std_ss = std(data.F_LICOR(cb_ss));
+    
+    % plot fluxes
+    figure();
+    hold on;
+    plot(data.T(cb_ss), data.F(cb_ss), 'g', 'DisplayName', "SS Flux, μ: " + f_mean_ss + " σ: " + f_std_ss + " μmol/m^2/s");
+    plot(data.T(c_ss), data.F_LICOR(c_ss), 'r', 'DisplayName', "SS Flux FLOOR LICOR, μ: " + f_licor_mean_ss + " σ: " + f_licor_std_ss + " μmol/m^2/s");
+    plot(data.T(c_ss), data.F_FLOOR(c_ss), 'c', 'DisplayName', "SS Flux FLOOR, μ: " + f_floor_mean_ss + " σ: " + f_floor_std_ss + " μmol/m^2/s");
+    yline(map{dataset_idx, 4}, 'kREPLACE_WITH_DASH_DASH', 'DisplayName', "Delivered Flux")
+    ylabel('CO_2 Flux μmol/m^2/s');
+    legend();
+    title(["Steady State Flux Results - Delivering " + map{dataset_idx, 4} + " μmol/m^2/s", "[DATASET " + dataset + "]"]);
+    xlabel('Time');
+    hold off;
+
+    % plot fluxes
+    figure();
+    hold on;
+    plot(data.T, data.F, 'g', 'DisplayName', "Flux");
+    plot(data.T, data.F_LICOR, 'r', 'DisplayName', "Flux FLOOR LICOR");
+    plot(data.T, data.F_FLOOR, 'c', 'DisplayName', "Flux FLOOR");
+    yline(map{dataset_idx, 4}, 'kREPLACE_WITH_DASH_DASH', 'DisplayName', "Delivered Flux")
+    ylabel('CO_2 Flux μmol/m^2/s');
+    legend();
+    title(["Flux Results - Delivering " + map{dataset_idx, 4} + " μmol/m^2/s", "[DATASET " + dataset + "]"]);
+    xlabel('Time');
+    hold off;
+    
+end
+
+
+
+%% Smooth Data
+
+
+##### SOURCE END #####
+--></body></html>

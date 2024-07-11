@@ -1,0 +1,12 @@
+CALIB
+    - 04.04.2024    Serial Dilution         w/ LICOR        Good Data       Unknown Sensors     Unknown Time
+    - 04.04.2024    Serial Dilution         w/ LICOR        Good Data       Unknown Sensors     Unknown Time
+    - 04.22.2024    Ambient Colocation      w/ Picarro      Good Data       Unknown Sensors     Unknown Time
+    - 06.16.2024    Closed Loop Colocation  w/ LICOR        Good Data       Unknown Sensors     Unknown Time
+    - 06.12.2024    Serial Dilution         w/ LICOR        Unkown          Unknown Sensors     Look at CSV
+    - 07.05.2024    Closed Loop Colocation  w/ LICOR        Bad Data        C - Amb, E - Chmb   Look @ Sensor Log
+    - 07.08.2024    Closed Loop Colocation  w/ LICOR        Good Data       C - Amb, E - Chmb   Look @ Sensor Log   
+    - 07.09.2024    Ambient Colocation      w/ LICOR        Good Data       C - Amb, E - Chmb   Look @ Sensor Log
+
+FLUX
+    - 07.10.2024    Static Chamber UB1      w/ LICOR        Good Data       LICOR               Look @ Sensor Log
