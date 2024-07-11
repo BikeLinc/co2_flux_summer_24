@@ -11,11 +11,22 @@
 
 clc, clear, close all
 
+addpath(genpath('../../UTILS'));
+
 %% Load Data
 
 % import elt sensor dataset
-daq = IMPORTDAQFILE("data/7.8.2024/daq_7_8_24.csv");
-daq = [daq; IMPORTDAQFILE("data/7.8.2024/daq_7_9_24.csv")];
+daq0 = IMPORTDAQFILE("data/7.8.2024.CLT/daq_7_8_24.csv");
+daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+daq0Idx = daq0.T > datetime(daq0Time(1)) & daq0.T < datetime(daq0Time(2));
+daq0 = daq0(daq0Idx, :);
+
+daq1 = IMPORTDAQFILE("data/7.8.2024.CLT/daq_7_9_24.csv");
+daq1Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+daq1Idx = daq1.T > datetime(daq1Time(1)) & daq1.T < datetime(daq1Time(2));
+daq1 = daq1(daq1Idx, :);
+
+daq = [daq0; daq1];
 daq = rmmissing(daq);
 
 
@@ -24,7 +35,7 @@ daq = rmmissing(daq);
 sensors = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
 
 % import licor reference instrument dataset
-licor = IMPORTLICORFILE("data/7.8.2024/licor.txt");
+licor = IMPORTLICORFILE("data/7.8.2024.CLT/licor.txt");
 licor = rmmissing(licor);
 
 %% Remove Errors
@@ -50,13 +61,13 @@ plot(daq.T, daq.CB,'DisplayName', 'ELT CO_2 B');
 plot(licor.T, licor.C,'DisplayName', 'LICOR CO_2');
 xlabel("Time")
 ylabel("CO_2 [ppm]")
-legend();
 title("Closed Loop Calibration - Raw Sensor Data");
+legend('location','eastoutside')
 
 %% Retime, Smooth, and Remove Outliers
 % section settings
-smooth_dt = minutes(5);
-retime_dt = seconds(5);
+smooth_dt = minutes(15);
+retime_dt = seconds(30);
 outlier_bounds = [10, 90];
 outlier_remove = true;
 
@@ -119,9 +130,10 @@ for index = 1:2
     end
 
     % apply best lag and shift dataset
-    fields = 1:3;
+    fields = 1:3; 
     for field = fields
-        sensor.(field) = SHIFTDATA(sensor.(field), opt_lag);
+        tmp_shft = SHIFTDATA(sensor.(field), opt_lag);
+        sensor.(field) = tmp_shft;
     end
     sensor = rmmissing(sensor);
 end
@@ -137,7 +149,7 @@ for index = 1:2
     plot(sensor, 4, 'DisplayName','LICOR');
     xlabel("Time");
     ylabel("CO_2 [ppm]")
-    legend();
+    legend('location','eastoutside');
     sensors{1,index} = sensor;
 end
 
@@ -159,7 +171,7 @@ for index = 1:2
     models{1,index} = fitlm(trainX, trainY);
 
     % network regression
-    models{2,index} = feedforwardnet([16, 16]);
+    models{2,index} = feedforwardnet([32, 32]);
     models{2,index} = train(models{2,index}, trainX', trainY');
 
     % calculate metrics
@@ -178,7 +190,7 @@ for index = 1:2
     plot(testX(:,1), testY, 'r-.', 'DisplayName', "Ground Truth (LICOR)");
     plot(testX(:,1), lin_pred,'gs', 'DisplayName', "Linear Model Response");
     plot(testX(:,1), net_pred,'mo', 'DisplayName', "Neural Model Response");
-    legend();
+    legend('location','eastoutside');
     xlabel("X CO_2 [ppm]")
     ylabel("Y CO_2 [ppm]")
     subplot(2,1,2)
@@ -186,7 +198,7 @@ for index = 1:2
     yline(0, 'r-.', 'DisplayName', "Ground Truth (LICOR)")
     plot(testX(:,1), lin_pred-testY,'gs', 'DisplayName', "Linear Model Response Residuals");
     plot(testX(:,1), net_pred-testY,'mo', 'DisplayName', "Neural Model Response Residuals");
-    legend();
+    legend('location','eastoutside');
     xlabel("X CO_2 [ppm]")
     ylabel("Y CO_2 Residuals [ppm]")
     sgtitle("Closed Loop Calibration - Calibration Model Response - Sensor " + index)
