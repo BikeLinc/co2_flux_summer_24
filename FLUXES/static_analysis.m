@@ -4,8 +4,11 @@ addpath(genpath('../UTILS'));
 
 %% Import Data
 
-licor = IMPORTLICORFILE("../DATA/FLUX/07.10.2024/licor_7_10_24.txt");
+licor = IMPORTLICORFILE("../DATA/FLUX/07.10.2024/licor.txt");
 licor = rmmissing(licor);
+
+licor_idx = licor.T > datetime("7/9/2024 9:15") & licor.T < datetime("7/9/2024 9:52");
+licor(licor_idx, :);
 
 
 
