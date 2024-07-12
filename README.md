@@ -6,12 +6,14 @@ This directory includes scripts and data for the 2024 Summer Wildfire CO<sub>2</
 
 |Folder|Description|
 |----|----|
-|ELT CALIBRATION|Scripts for calibrating ELT S300-3V CO<sub>2</sub> sensors. Ambient colocations are used for ambient sensors. Ambient and closed loop colocations are used for ambient sensors.|
-|FLUXES|Scripts for calculating fluxes from datasets.|
-|LICOR|Calibration files for LICOR LI-7810.|
-|MFC|Calibration and control scripts for Mass Flow Controller (MFC).|
+|DATA|Collection of datasets for this project. See `info.txt` for subfolder organization information.|
+|ELT CALIB|Scripts for calibrating ELT S300-3V CO<sub>2</sub> sensors. Ambient colocations are used for ambient sensors. Ambient and closed loop colocations are used for ambient sensors.|
+|FLUXES|Scripts for calculating fluxes from datasets. Both static chamber method and dynamic flux chamber methods are included.|
+|LICOR CALIB|Calibration files for LICOR LI-7810.|
+|MFC CALIB|Calibration scripts for Mass Flow Controller (MFC).|
 |MODELING|Theoretical applications of box model.|
-|DAQ|Hardware and firmware for data acquisition system (DAQ).|
+|PCB|Hardware and firmware for data acquisition system PCB.|
+|UTILS|Collection of utility functions for all scripts.|
 
 # Contributing
 
