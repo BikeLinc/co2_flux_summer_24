@@ -2,7 +2,9 @@
 %
 %
 %   This file is for interpereting delivered fluxes and validating the CO2
-%   flux chamber in summer 2024.
+%   flux chamber in summer 2024. We use the licor, measuring the chamber
+%   exhaust concentration and the flux chambers measurement, calculate the
+%   flux, then report the plots.
 %
 %   Lincoln Scheer
 %   Jun 23 2024
@@ -10,6 +12,8 @@
 %
 
 clc, clear, close all
+
+addpath(genpath('../UTILS'));
 
 %% Calculate Fluxes
 
