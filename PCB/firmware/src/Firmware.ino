@@ -75,7 +75,7 @@ void setup() {
 
 	// ELT Setup
 	Serial.print("ELT ...");
-	for (uint8_t t=0; t<2; t++) {
+	for (uint8_t t=0; t<8; t++) {
 		tcaselect(t);
 		for (uint8_t addr = 0; addr<=127; addr++) {
 			if (addr == TCAADDR) continue;

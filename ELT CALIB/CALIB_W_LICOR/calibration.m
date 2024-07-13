@@ -16,17 +16,27 @@ addpath(genpath('../../UTILS'));
 %% Load Data
 
 % import elt sensor dataset
-daq0 = IMPORTDAQFILE("data/7.8.2024.CLT/daq_7_8_24.csv");
+
+% CLOSED LOOP P1
+daq0 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_8_24.csv");
 daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
 daq0Idx = daq0.T > datetime(daq0Time(1)) & daq0.T < datetime(daq0Time(2));
 daq0 = daq0(daq0Idx, :);
 
-daq1 = IMPORTDAQFILE("data/7.8.2024.CLT/daq_7_9_24.csv");
+% CLOSED LOOP P2
+daq1 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_9_24.csv");
 daq1Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
 daq1Idx = daq1.T > datetime(daq1Time(1)) & daq1.T < datetime(daq1Time(2));
 daq1 = daq1(daq1Idx, :);
 
-daq = [daq0; daq1];
+% AMBIENT CALIB
+daq2 = IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_09.TXT");
+daq2 = [daq2; IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_10.TXT")];
+daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
+daq2Idx = daq2.T > datetime(daq2Time(1)) & daq2.T < datetime(daq2Time(2));
+daq2 = daq2(daq2Idx, :);
+
+daq = [daq0; daq1; daq2];
 daq = rmmissing(daq);
 
 
@@ -35,7 +45,17 @@ daq = rmmissing(daq);
 sensors = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
 
 % import licor reference instrument dataset
-licor = IMPORTLICORFILE("data/7.8.2024.CLT/licor.txt");
+licor0 = IMPORTLICORFILE("../../DATA/CALIB/07.08.2024/licor.txt");
+daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+daq0Idx = licor0.T > datetime(daq0Time(1)) & licor0.T < datetime(daq0Time(2));
+licor0 = licor0(daq0Idx, :);
+
+licor1 = IMPORTLICORFILE("../../DATA/CALIB/07.09.2024/licor_7_10_24.txt");
+daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
+daq2Idx = licor1.T > datetime(daq2Time(1)) & licor1.T < datetime(daq2Time(2));
+licor1 = licor1(daq2Idx, :);
+licor = [licor0; licor1];
+licor.T = licor.T + minutes(3);
 licor = rmmissing(licor);
 
 %% Remove Errors
@@ -56,9 +76,9 @@ end
 %% Plot Raw Data
 figure();
 hold on; grid on;
-plot(daq.T, daq.CA,'DisplayName', 'ELT CO_2 A');
-plot(daq.T, daq.CB,'DisplayName', 'ELT CO_2 B');
-plot(licor.T, licor.C,'DisplayName', 'LICOR CO_2');
+plot(daq.T, daq.CA,'DisplayName', 'ELT CO_2 A', 'Marker', 'diamond', 'LineStyle', 'none');
+plot(daq.T, daq.CB,'DisplayName', 'ELT CO_2 B', 'Marker', '^', 'LineStyle', 'none');
+plot(licor.T, licor.C,'DisplayName', 'LICOR CO_2', 'Marker', 'square', 'LineStyle', 'none');
 xlabel("Time")
 ylabel("CO_2 [ppm]")
 title("Closed Loop Calibration - Raw Sensor Data");
@@ -145,8 +165,8 @@ for index = 1:2
     subplot(1,2,index);
     sensor = sensors{1,index};
     hold on; grid on;
-    plot(sensor, 1, 'DisplayName', 'ELT');
-    plot(sensor, 4, 'DisplayName','LICOR');
+    plot(sensor, 1, 'DisplayName', 'ELT', 'Marker', 'diamond', 'LineStyle', 'none');
+    plot(sensor, 4, 'DisplayName','LICOR', 'Marker', 'square', 'LineStyle', 'none');
     xlabel("Time");
     ylabel("CO_2 [ppm]")
     legend('location','eastoutside');
