@@ -15,7 +15,7 @@ stop = datetime("7/10/2024 9:52");
 %% Smooth Values
 licorRetime = seconds(1);
 licorWindow = minutes(5);
-daqRetime = minutes(15);
+daqRetime = hours(1);
 daqWindow = hours(1);
 
 %% Collect Data
@@ -89,7 +89,7 @@ licor.FLUX_mg = (licor.DCDT_mg.*cfg.V)./cfg.As;
 
 %% Calculate Dynamic Flux
 
-Q = cfg.lpm_to_cms(daq.Q);
+Q = cfg.lpm_to_cms(daq.Q/1000);
 CA = cfg.ppm_to_mg(daq.CB_CALIB);
 CB = cfg.ppm_to_mg(daq.CA_CALIB);
 
