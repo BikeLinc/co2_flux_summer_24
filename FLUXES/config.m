@@ -1,4 +1,4 @@
-function config = config()
+function config = analysis_config()
 %ANALYSIS_CONFIG Summary of this function goes here
 %   Detailed explanation goes here
 

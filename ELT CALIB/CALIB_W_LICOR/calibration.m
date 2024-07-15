@@ -182,9 +182,9 @@ for index = 1:2
 
     % partition data
     cv = cvpartition(size(sensor,1), 'HoldOut', 0.3);
-    trainX = table2array(sensor(~cv.test, 2:4));
+    trainX = table2array(sensor(~cv.test, 2)); %2:4 for all predictors
     trainY = table2array(sensor(~cv.test, 5));
-    testX = table2array(sensor(cv.test, 2:4));
+    testX = table2array(sensor(cv.test, 2)); %2:4 for all predictors
     testY = table2array(sensor(cv.test, 5));
 
     % linear regression
