@@ -11,7 +11,7 @@
  * 
 */
 
-#include "firmware.h"
+#include "src/firmware.h"
 
 // Enable Subroutines
 const bool DATALOG = true;
@@ -20,10 +20,10 @@ const bool SAMPLE = true;
 const char* LOGFILENAME = "datalog.txt";
 
 // Pin Definitions
-#define SD_CS_PIN		4
+#define SD_CS_PIN		10
 #define DHT_DATA_A_PIN	3
 #define DHT_DATA_B_PIN	2
-#define DATA_LED_PIN	8
+#define DATA_LED_PIN	4
 
 // I2C Addresses
 #define FLOW_ADDR		0x50
@@ -40,6 +40,17 @@ RTC_DS3231		rtc;
 Sd2Card card;
 SdVolume volume;
 SdFile root;
+
+float readThermistor(int i) {
+  float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
+  int Vo = analogRead(i);
+  float R2 = 10000 * (1023.0 / (float)Vo - 1.0);
+  float logR2 = log(R2);
+  float T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2));
+  T = T - 273.15;
+  T = (T * 9.0)/ 5.0 + 32.0; 
+  return T;
+}
 
 // Setup Routine
 void setup() {
@@ -61,9 +72,11 @@ void setup() {
 		Serial.println("online");
 	}
 	if (rtc.lostPower()) {
-		rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+		//rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 	}
 	
+
+  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
 	// SD Card Setup
 	Serial.print("SD ... ");
@@ -81,11 +94,12 @@ void setup() {
 			if (addr == TCAADDR) continue;
 			Wire.beginTransmission(addr);
 			if (!Wire.endTransmission()) {
-				if (addr == ELT_ADDR) {
-					Serial.print(" port ");
+				//if (addr == ELT_ADDR) {
+					Serial.print(", port ");
 					Serial.print(t);
-					
-				}
+          Serial.print(" 0x");
+          Serial.print(addr, HEX);
+				//}
 			}
 		}
 		/* Wakup Sensor & Clear
@@ -169,9 +183,9 @@ void loop() {
 
 		// CO2 Sensor - Detect Errors
 		if(co2A == 0 || co2A == 64537)
-			co2A = -999;
+			co2A = -99999;
 		if(co2B == 0 || co2B == 64537)	
-			co2B = -999;
+			co2B = -99999;
 
 		// Temp. & Humid. - Read DHT
 		int readData = dhtA.read(DHT_DATA_A_PIN);
@@ -181,7 +195,7 @@ void loop() {
 		tempB = dhtB.readTemperature();
 		humidB = dhtB.readHumidity();
 
-		// Format Ouput, mark invalid data as -999
+		// Format Ouput, mark invalid data as -99999
 		data += date;
 		data += delim;
 
@@ -192,14 +206,14 @@ void loop() {
 		data += delim;
 
 		if (isnan(tempA)) {
-			data += "-999";
+			data += "-99999";
 		} else {
 			data += String(tempA);
 		} 
 		data += delim;
 
 		if (isnan(humidA)) {
-			data += "-999";
+			data += "-99999";
 		} else {
 			data += String(humidA);
 		}
@@ -209,23 +223,25 @@ void loop() {
 		data += delim;
 
 		if (isnan(tempB)) {
-			data += "-999";
+			data += "-99999";
 		} else {
 			data += String(tempB);
 		} 
 		data += delim;
 
 		if (isnan(humidB)) {
-			data += "-999";
+			data += "-99999";
 		} else {
 			data += String(humidB);
 		}
 		data += delim;
 
-	}
+    data += String(readThermistor(0));
+    data += delim;
+    data += String(readThermistor(1));
+    data += delim;
 
-	// Data Sampling Indicator Off
-	digitalWrite(DATA_LED_PIN, LOW);
+	}
 		
 	Serial.print(data); 
 	
@@ -264,7 +280,12 @@ void loop() {
 		file.close();
 
 	}
+
+  // Data Sampling Indicator Off
+	digitalWrite(DATA_LED_PIN, LOW);
 	delay(interval);
+
+
 
 }
 
