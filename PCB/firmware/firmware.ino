@@ -16,6 +16,7 @@
 // Enable Subroutines
 const bool DATALOG = true;
 const bool SAMPLE = true;
+const bool SINGLE_DATA_LOG = true;
 
 const char* LOGFILENAME = "datalog.txt";
 
@@ -72,7 +73,7 @@ void setup() {
 		Serial.println("online");
 	}
 	if (rtc.lostPower()) {
-		//rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+		rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 	}
 	
 
@@ -182,9 +183,9 @@ void loop() {
 		co2B = getS300CO2();
 
 		// CO2 Sensor - Detect Errors
-		if(co2A == 0 || co2A == 64537)
+		if(co2A == 0 || co2A == 64537 || co2A == 2500)
 			co2A = -99999;
-		if(co2B == 0 || co2B == 64537)	
+		if(co2B == 0 || co2B == 64537 || co2B == 2500)	
 			co2B = -99999;
 
 		// Temp. & Humid. - Read DHT
@@ -198,6 +199,9 @@ void loop() {
 		// Format Ouput, mark invalid data as -99999
 		data += date;
 		data += delim;
+
+    data += millis();
+    data += delim;
 
 		data += flow;
 		data += delim;
@@ -250,12 +254,26 @@ void loop() {
 		Serial.print("data -> ");
 
 		DateTime now = rtc.now();		
-		char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
+
+    File file;
+    if (!SINGLE_DATA_LOG) {
+		  char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
   		snprintf(filename, sizeof(filename), "%02d_%02d_%02d.txt", now.year() % 100, now.month(), now.day());
-		File file = SD.open(filename, FILE_WRITE);
+      file = SD.open(filename, FILE_WRITE);
+      Serial.print(filename);
+    }
+    else {
+      const char* filename = "datalog.txt";
+      file = SD.open(filename, FILE_WRITE);
+      Serial.print(filename);
+    }
+
+   
+
+
 		if (file) {
 			
-			Serial.print(filename);
+			
 			file.println(data);
 			// close the file:	
 			
