@@ -1,27 +1,39 @@
-% This script is for running flux measurements
+% This script is for applying flux calculations to datasets for static and
+% dynamic chambers.
+%
+% July 2024
+%
 
+% Clear workspace
 clc, clear, close all
 
+% Adding more functions to path from utility folder.
 addpath(genpath('../UTILS'));
 
+% Adding analysis configuration variables, for consistency across
+% calculations.
 cfg = config();
 
 %% Date Range
 %  Define the dates you want to look at fluxes for.
 
-% Date (Y, M, D)
-dateStart = datetime(2024, 7, 12);
-dateEnd = datetime(2024, 7, 12);
+% Dates (Y, M, D) that you want to look at fluxes for.
+dateStart = datetime(2024, 7, 8);
+dateEnd = datetime(2024, 7, 22);
 
-% Times
+% Times that you want to looka t fluxes for.
 start = timeofday(datetime("00:00", 'InputFormat', 'HH:mm')) + dateStart;
 stop = timeofday(datetime("11:59", 'InputFormat', 'HH:mm')) + dateEnd;
 
-% RUN Calculation
+% Mark true what flux chamber datasets you want to look at during the start
+% ann stop duration range.
 static = true;
-dynamic = false;
+dynamic = true;
 
 %% Smooth Values
+% These values dictate the delta between datapoints and the smoothing
+% window that is used across the dataset.
+
 if static
     licorRetime = seconds(30);
     licorWindow = minutes(5);
@@ -33,37 +45,66 @@ if dynamic
 end
 
 %% Collect Data
+% Looks through flux datasets for ones matching datetimes.
 
+% import metadata 
+meta = readtable("../DATA/FLUX/listing.xlsx");
 
-licor = [];
-daq = [];
+licorSets = {};
+daqSets = {};
+
+% for all days in range
 for day = dateStart:dateEnd
 
+    % get folder based on day
     folder = sprintf('%02d',day.Month) + "." + sprintf('%02d',day.Day) + "." + day.Year;
-    directory = dir("../DATA/FLUX/" + folder);
     
+    % get files in folder
+    directory = dir("../DATA/FLUX/" + folder);
+
+    % for all files in folder
     for i = 3:numel(directory)
         file = directory(i);
+
+        % select meta data row for current file-folder combination
+        row = strcmp(meta{:,1}, file.name) & strcmp(meta{:,2}, folder);
+        fileMeta = meta(row, :);
+        
+        % import licor file
         if file.name == "licor.txt"
+    
             licor = IMPORTLICORFILE(file.folder + "/" + file.name);
+            licor.META_ID = ones(height(licor),1)*find(row);
+            licor.C_CALIB = licor.C*0.9883+24.6914;
+            
             time = licor.T < stop - minutes(3) & licor.T > start - minutes(3);
             licor = licor(time, :);
-            licor.C_CALIB = licor.C*0.9883+24.6914; % most recent licor calibration.
-        elseif file.name(end-3:end) == ".txt" | file.name(end-3:end) == ".TXT"
-            daq = [daq; IMPORTDAQFILE(file.folder + "/" + file.name)];
+
+            licorSets = [licorSets; {licor}];
+        
+        % import DAQ-like file
+        elseif file.name(end-3:end) == ".txt" || file.name(end-3:end) == ".TXT"
+
+            daq = IMPORTDAQFILE(file.folder + "/" + file.name);
+            daq.META_ID = ones(height(daq),1)*find(row);
+            
             time = daq.T < stop & daq.T > start;
             daq = daq(time, :);
+
+            daqSets = [daqSets; {daq}];
+
         end
     end
 
 end
 
+% remove variables if turned off
 if ~static
-    licor = [];
+    licorSets = [];
 end
 
 if ~dynamic
-    daq = [];
+    daqSets = [];
 end
 
 if isempty(daq)
@@ -79,24 +120,33 @@ figure();
 subplot(2, 2, 1);
 hold on;
 if static
-    plot(licor.T, licor.C, 'DisplayName', "LICOR Raw");
+    for i = 1:height(licorSets)
+        licor = licorSets{i};
+        plot(licor.T, licor.C,'.', 'DisplayName', "LICOR Raw - File " + mean(licor.META_ID));
+    end
 end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
 legend();
-title("Raw LICOR")
+title("Raw Static Chamber Data")
 subplot(2, 2, 2);
 hold on;
+
+
+
 if dynamic
-    plot(daq.T, daq.CA, 'DisplayName', "DAQ CA Raw");
-    plot(daq.T, daq.CB, 'DisplayName', "DAQ CB Raw");
+    for i = 1:height(daqSets)
+        daq = daqSets{i};
+        plot(daq.T, daq.CA, '.', 'DisplayName', "DAQ CA Raw - File " + mean(daq.META_ID));
+        plot(daq.T, daq.CB, '.', 'DisplayName', "DAQ CB Raw - File " + mean(daq.META_ID));
+    end
 end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
 legend();
-title("Raw DAQ")
+title("Raw Dynamic Chamber Data")
 
 
 %% smooth data
@@ -118,16 +168,36 @@ end
 %% Apply Calibrations
 
 if dynamic
-    modelCA = load("../ELT CALIB/CALIB_W_LICOR/models/C-CL-linear-15-Jul-2024.mat");
-    modelCB = load("../ELT CALIB/CALIB_W_LICOR/models/E-CL-linear-15-Jul-2024.mat");
+    for i = 1:height(daqSets)
+        daq = daqSets{i};
+
+        row = mean(daq.META_ID);
+
+        if (row ~= nan)
+
+            metaData = meta(row,:);
+           
+            if (metaData.PAD_A ~= "UPDATE" || metaData.PAD_B ~= "UPDATE")
     
-    % Linear
-    daq.CA_CALIB = predict(modelCA.model_1_lin, [daq.CA]);
-    daq.CB_CALIB = predict(modelCB.model_2_lin, [daq.CB]);
+                modelCA = load("../ELT CALIB/CALIB_W_LICOR/models/C-CL-linear-15-Jul-2024.mat");
+                modelCB = load("../ELT CALIB/CALIB_W_LICOR/models/E-CL-linear-15-Jul-2024.mat");
+                
+                % Linear
+                daq.CA_CALIB = predict(modelCA.model_1_lin, [daq.CA]);
+                daq.CB_CALIB = predict(modelCB.model_2_lin, [daq.CB]);
+                
+                % Network
+                %daq.CA_CALIB = modelCA.model_1_net(daq.CA')';
+                %daq.CB_CALIB = modelCB.model_2_net(daq.CB')';
     
-    % Network
-    %daq.CA_CALIB = modelCA.model_1_net(daq.CA')';
-    %daq.CB_CALIB = modelCB.model_2_net(daq.CB')';
+            else
+    
+                daq.CA_CALIB = daq.CA;
+                daq.CB_CALIB = daq.CB;
+    
+            end
+        end
+    end
 end
 
 %% Plot Smoothed and Calibrated Data
@@ -135,24 +205,30 @@ end
 subplot(2, 2, 3);
 hold on;
 if static
-    plot(licor.T, licor.C_CALIB, 'DisplayName', "LICOR");
+    for i = 1:height(licorSets)
+        licor = licorSets{i};
+        plot(licor.T, licor.C_CALIB,'.', 'DisplayName', "LICOR - File " + mean(licor.META_ID));
+    end
 end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
 legend();
-title("Calibrated & Smoothed LICOR")
+title("Processed Static Chamber Data")
 subplot(2, 2, 4);
 hold on;
 if dynamic
-    plot(daq.T, daq.CA_CALIB, 'DisplayName', "DAQ CA");
-    plot(daq.T, daq.CB_CALIB, 'DisplayName', "DAQ CB");
+    for i = 1:height(daqSets)
+        daq = daqSets{i};
+        plot(daq.T, daq.CA_CALIB,'.', 'DisplayName', "DAQ CA - File " + mean(daq.META_ID));
+        plot(daq.T, daq.CB_CALIB,'.', 'DisplayName', "DAQ CB - File " + mean(daq.META_ID));
+    end
 end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
 legend();
-title("Calibrated & Smoothed DAQ")
+title("Processed Dynamic Chamber Data")
 sgtitle("Raw and Processed Data")
 
 %% Calculate Static Flux
@@ -170,6 +246,7 @@ end
 %% Calculate Dynamic Flux
 
 if dynamic
+
     Q = cfg.lpm_to_cms(daq.Q/1000);% mLpm to cms
     AMBIENT = cfg.ppm_to_mg(daq.CB_CALIB);
     CHAMBER = cfg.ppm_to_mg(daq.CA_CALIB);
@@ -195,10 +272,12 @@ range = cfg.ppm_to_mg(range);
 
 figure();
 hold on;
+
 if static
     plot(licor.T, licor.F_mg,'r^', 'DisplayName', "LICOR");
     yline(mean(licor.F_mg),'r--', 'DisplayName', "LICOR \mu = " + mean(licor.F_mg) + " mg/m^2/s")
 end
+
 if dynamic
     plot(daq.T, daq.F_mg,'gs', 'DisplayName', "DAQ");
     plot(daq.T, daq.F_FLOOR_mg,'b*', 'DisplayName', "DAQ Floor");
