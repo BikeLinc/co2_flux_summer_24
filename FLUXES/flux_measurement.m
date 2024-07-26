@@ -1,6 +1,6 @@
 % This script is for applying flux calculations to datasets for static and
 % dynamic chambers.
-%
+
 % July 2024
 %
 
@@ -19,7 +19,7 @@ cfg = config();
 
 % Dates (Y, M, D) that you want to look at fluxes for.
 dateStart = datetime(2024, 7, 8);
-dateEnd = datetime(2024, 7, 22);
+dateEnd = datetime(2024, 7, 20);
 
 % Times that you want to looka t fluxes for.
 start = timeofday(datetime("00:00", 'InputFormat', 'HH:mm')) + dateStart;
@@ -91,7 +91,9 @@ for day = dateStart:dateEnd
             time = daq.T < stop & daq.T > start;
             daq = daq(time, :);
 
-            daqSets = [daqSets; {daq}];
+            if height(daq) ~= 0
+                daqSets = [daqSets; {daq}];
+            end
 
         end
     end
@@ -122,7 +124,7 @@ hold on;
 if static
     for i = 1:height(licorSets)
         licor = licorSets{i};
-        plot(licor.T, licor.C,'.', 'DisplayName', "LICOR Raw - File " + mean(licor.META_ID));
+        plot(licor.T, licor.C, '.', 'DisplayName', "LICOR Raw - File " + mean(licor.META_ID));
     end
 end
 ylabel("CO_2 [ppm]")
@@ -165,37 +167,32 @@ if dynamic
     daq = unique(daq);
 end
 
+
 %% Apply Calibrations
 
 if dynamic
     for i = 1:height(daqSets)
         daq = daqSets{i};
-
         row = mean(daq.META_ID);
-
-        if (row ~= nan)
-
-            metaData = meta(row,:);
+        metaData = meta(row,:);
            
-            if (metaData.PAD_A ~= "UPDATE" || metaData.PAD_B ~= "UPDATE")
+        if (metaData.PAD_A ~= "UPDATE" || metaData.PAD_B ~= "UPDATE")
+
+            modelCA = load("../ELT CALIB/CALIB_W_LICOR/models/C-CL-linear-15-Jul-2024.mat");
+            modelCB = load("../ELT CALIB/CALIB_W_LICOR/models/E-CL-linear-15-Jul-2024.mat");
+            
+            % Linear
+            daq.CA_CALIB = predict(modelCA.model_1_lin, [daq.CA]);
+            daq.CB_CALIB = predict(modelCB.model_2_lin, [daq.CB]);
+            
+            % Network
+            %daq.CA_CALIB = modelCA.model_1_net(daq.CA')';
+            %daq.CB_CALIB = modelCB.model_2_net(daq.CB')';
     
-                modelCA = load("../ELT CALIB/CALIB_W_LICOR/models/C-CL-linear-15-Jul-2024.mat");
-                modelCB = load("../ELT CALIB/CALIB_W_LICOR/models/E-CL-linear-15-Jul-2024.mat");
-                
-                % Linear
-                daq.CA_CALIB = predict(modelCA.model_1_lin, [daq.CA]);
-                daq.CB_CALIB = predict(modelCB.model_2_lin, [daq.CB]);
-                
-                % Network
-                %daq.CA_CALIB = modelCA.model_1_net(daq.CA')';
-                %daq.CB_CALIB = modelCB.model_2_net(daq.CB')';
+        else
     
-            else
-    
-                daq.CA_CALIB = daq.CA;
-                daq.CB_CALIB = daq.CB;
-    
-            end
+            daq.CA_CALIB = daq.CA;
+            daq.CB_CALIB = daq.CB;
         end
     end
 end
