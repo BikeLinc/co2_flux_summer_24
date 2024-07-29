@@ -19,10 +19,10 @@ cfg = config();
 
 % Dates (Y, M, D) that you want to look at fluxes for.
 dateStart = datetime(2024, 7, 8);
-dateEnd = datetime(2024, 7, 20);
+dateEnd = datetime(2024, 7, 28);
 
 % Times that you want to looka t fluxes for.
-start = timeofday(datetime("00:00", 'InputFormat', 'HH:mm')) + dateStart;
+start = timeofday(datetime("0:59", 'InputFormat', 'HH:mm')) + dateStart;
 stop = timeofday(datetime("11:59", 'InputFormat', 'HH:mm')) + dateEnd;
 
 % Mark true what flux chamber datasets you want to look at during the start
@@ -35,12 +35,12 @@ dynamic = true;
 % window that is used across the dataset.
 
 if static
-    licorRetime = seconds(30);
+    licorRetime = seconds(60);
     licorWindow = minutes(5);
 end
 
 if dynamic
-    daqRetime = seconds(30);
+    daqRetime = seconds(60);
     daqWindow = minutes(5);
 end
 
@@ -176,14 +176,14 @@ if dynamic
         row = mean(daq.META_ID);
         metaData = meta(row,:);
            
-        if (metaData.PAD_A ~= "UPDATE" || metaData.PAD_B ~= "UPDATE")
+        if (metaData.PAD_A == "E" || metaData.PAD_B == "")
 
             modelCA = load("../ELT CALIB/CALIB_W_LICOR/models/C-CL-linear-15-Jul-2024.mat");
             modelCB = load("../ELT CALIB/CALIB_W_LICOR/models/E-CL-linear-15-Jul-2024.mat");
             
             % Linear
-            daq.CA_CALIB = predict(modelCA.model_1_lin, [daq.CA]);
-            daq.CB_CALIB = predict(modelCB.model_2_lin, [daq.CB]);
+            %daq.CA_CALIB = predict(modelCA.model_1_lin, [daq.CA]);
+            %daq.CB_CALIB = predict(modelCB.model_2_lin, [daq.CB]);
             
             % Network
             %daq.CA_CALIB = modelCA.model_1_net(daq.CA')';
@@ -194,6 +194,8 @@ if dynamic
             daq.CA_CALIB = daq.CA;
             daq.CB_CALIB = daq.CB;
         end
+
+            daqSets{i} = daq;
     end
 end
 
@@ -244,7 +246,13 @@ end
 
 if dynamic
 
-    Q = cfg.lpm_to_cms(daq.Q/1000);% mLpm to cms
+
+    if Q == 0
+        Q = 2.0204125;
+    else
+        Q = cfg.lpm_to_cms(daq.Q/1000);% mLpm to cms    
+    end
+
     AMBIENT = cfg.ppm_to_mg(daq.CB_CALIB);
     CHAMBER = cfg.ppm_to_mg(daq.CA_CALIB);
     CHAMBER_FLOOR = CHAMBER - AMBIENT(1);
@@ -319,8 +327,8 @@ end
 
 
 if  dynamic
-    fprintf("\tCB:\t\tLinear R^2 %0.4f\n", modelCB.model_2_lin.Rsquared.Ordinary)
-    fprintf("\tCA:\t\tLinear R^2 %0.4f\n", modelCA.model_1_lin.Rsquared.Ordinary)
-    fprintf("\tDynamic:\t\t%03f mg/m^2/s\n", mean(rmmissing(daq.F_mg)))
-    fprintf("\tDynamic Floor:\t%03f mg/m^2/s\n", mean(rmmissing(daq.F_FLOOR_mg)))
+    %fprintf("\tCB:\t\tLinear R^2 %0.4f\n", modelCB.model_2_lin.Rsquared.Ordinary)
+    %fprintf("\tCA:\t\tLinear R^2 %0.4f\n", modelCA.model_1_lin.Rsquared.Ordinary)
+    %fprintf("\tDynamic:\t\t%03f mg/m^2/s\n", mean(rmmissing(daq.F_mg)))
+    %fprintf("\tDynamic Floor:\t%03f mg/m^2/s\n", mean(rmmissing(daq.F_FLOOR_mg)))
 end
