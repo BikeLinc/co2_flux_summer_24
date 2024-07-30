@@ -366,7 +366,7 @@ if static
         dc = [0; diff(licor.data.C_CALIB)];
         dt = [0; seconds(diff(licor.data.T))];
 
-        licor.data.DCDT = dc/dt;
+        licor.data.DCDT = dc./dt;
         licor.data = rmmissing(licor.data);
 
         licor.data.DCDT_mg = cfg.ppm_to_mg(licor.data.DCDT);
@@ -453,47 +453,63 @@ grid on;
 legend([h0(1), h1(1), h2(1), h3(1)], ["Static Burn","Static Un-Burn", "Dynamic Burn", "Dynamic Un-Burn"]);
 yregion(range, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected Range');
 
-%% Box Plot
 
-figure();
-hold on;
+%% Lump Data Together
 
-h0 = [];
-h1 = [];
+
+licorBurnLump = [];
+licorUnburnLump = [];
+daqUnburnLump = [];
+daqBurnLump = [];
+
 if static
     for i = 1:height(licorSets)
         licor = licorSets{i};
         if (licor.meta.DEPLOY_SITE == "BURN")
-            p0 = boxplot(licor.data.F_mg);
-            h0 = [h0; p0];
+            licorBurnLump = [licorBurnLump; licor.data];
         else
-            p1 = boxplot(licor.data.F_mg);
-            h1 = [h1; p1];
+            licorUnburnLump = [licorUnburnLump; licor.data];
         end
     end
 end
 
-h2 = [];
-h3 = [];
 if dynamic
     for i = 1:height(daqSets)
         daq = daqSets{i};
+
         if (daq.meta.DEPLOY_SITE == "BURN")
-            p0 = plot(daq.data.T, daq.data.F_mg,'bs');
-            h2 = [h2; p0];
+            daqBurnLump = [daqBurnLump; daq.data];
         else
-            p1 = plot(daq.data.T, daq.data.F_mg,'gs');
-            h3 = [h3; p1];
+            daqUnburnLump = [daqUnburnLump; daq.data];
         end
+
     end
 end
 
-xlabel("Time");
-ylabel("Flux Rate [mg/m^2/s]");
-title("Measured CO_2 Flux Rates  (" + start.Month + "/" + start.Day + "/" + start.Year + " to " + stop.Month + "/" + stop.Day + "/" + stop.Year + ")");
+
+%% Generate Box-And-Whisker Plots
+
+% create figure, hold on, and add grid
+figure();
+hold on;
 grid on;
-legend([h0(1), h1(1), h2(1), h3(1)], ["Static Burn","Static Un-Burn", "Dynamic Burn", "Dynamic Un-Burn"]);
-yregion(range, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected Range');
+
+% lumped data to plot
+x1 = daqBurnLump.F_mg;
+x2 = daqUnburnLump.F_mg;
+x3 = licorBurnLump.F_mg;
+x4 = licorUnburnLump.F_mg;
+x = [x1; x2; x3; x4];
+
+% lumped categories to plot
+g1 = repmat({'DAQ Burned'}, height(x1),1);
+g2 = repmat({'DAQ Un-Burned'}, height(x2),1);
+g3 = repmat({'LICOR Burned'}, height(x3),1);
+g4 = repmat({'LICOR Un-Burned'}, height(x4),1);
+g = [g1; g2; g3; g4];
+
+% plot box and whisker
+boxplot(x, g);
 
 
 %% Generate Report
