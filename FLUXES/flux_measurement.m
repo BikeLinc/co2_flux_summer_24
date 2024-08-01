@@ -35,13 +35,13 @@ dynamic = true;
 % window that is used across the dataset.
 
 if static
-    licorRetime = seconds(60);
-    licorWindow = minutes(15);
+    licorRetime = seconds(5);
+    licorWindow = minutes(1);
 end
 
 if dynamic
-    daqRetime = seconds(60);
-    daqWindow = minutes(15);
+    daqRetime = seconds(500);
+    daqWindow = minutes(1);
 end
 
 %% Collect Data
@@ -392,12 +392,12 @@ if dynamic
             Q = cfg.lpm_to_cms(2.0204125);
         end
 
-        AMBIENT = cfg.ppm_to_mg(daq.data.CB_CALIB);
-        CHAMBER = cfg.ppm_to_mg(daq.data.CA_CALIB);
+        AMBIENT = cfg.ppm_to_mg(daq.data.CA_CALIB);
+        CHAMBER = cfg.ppm_to_mg(daq.data.CB_CALIB);
         CHAMBER_FLOOR = CHAMBER - AMBIENT(1);
 
         V = cfg.V;
-        As = cfg.As;
+        As = pi*(0.1603375^2);
 
         daq.data.F_mg = (Q.*(CHAMBER-AMBIENT))./As;
 
@@ -486,7 +486,11 @@ if dynamic
     end
 end
 
-
+%% Measured Fluxes Over a Day Long Period
+daqBurnLumpDay=daqBurnLump.F_mg*86400;
+daqUnburnLumpDay=daqUnburnLump.F_mg*86400;
+licorBurnLumpDay=licorBurnLump.F_mg*86400;
+licorUnburnLumpDay=licorUnburnLump.F_mg*86400;
 %% Generate Box-And-Whisker Plots
 
 % create figure, hold on, and add grid
@@ -495,10 +499,10 @@ hold on;
 grid on;
 
 % lumped data to plot
-x1 = daqBurnLump.F_mg;
-x2 = daqUnburnLump.F_mg;
-x3 = licorBurnLump.F_mg;
-x4 = licorUnburnLump.F_mg;
+x1 = daqBurnLumpDay;
+x2 = daqUnburnLumpDay;
+x3 = licorBurnLumpDay;
+x4 = licorUnburnLumpDay;
 x = [x1; x2; x3; x4];
 
 % lumped categories to plot
@@ -510,7 +514,19 @@ g = [g1; g2; g3; g4];
 
 % plot box and whisker
 boxplot(x, g);
+xlabel("Location Analyzed and Instrument Used");
+ylabel("Flux Rate [mg/m^2/day]");
+title("Summarized Data Distribution of Measured CO_2 Flux Rates");
+yregion(range*86400, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected Range');
+disp("Burned DAQ Mean " + mean(rmmissing(daqBurnLumpDay)))
+disp("Unburned DAQ Mean " + mean(rmmissing(daqUnburnLumpDay)))
+disp("Burned Licor Mean " + mean(rmmissing(licorBurnLumpDay)))
+disp("Unburned Licor Mean " + mean(rmmissing(licorUnburnLumpDay)))
 
+disp("Burned DAQ Median " + median(rmmissing(daqBurnLumpDay)))
+disp("Unburned DAQ Median " + median(rmmissing(daqUnburnLumpDay)))
+disp("Burned Licor Median " + median(rmmissing(licorBurnLumpDay)))
+disp("Unburned Licor Median " + median(rmmissing(licorUnburnLumpDay)))
 
 %% Generate Report
 
