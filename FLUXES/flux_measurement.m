@@ -1,11 +1,14 @@
 % This script is for applying flux calculations to datasets for static and
-% dynamic chambers.
-
+% dynamic chambers. Sections generally use processDynamic and processStatic
+% logical flags to run or not run specific sections.
+%
 % July 2024
 %
 
 % Clear workspace
 clc, clear, close all
+
+fprintf("Running:\tflux_measurement.m\n")
 
 % Adding more functions to path from utility folder.
 addpath(genpath('../UTILS'));
@@ -27,21 +30,21 @@ stop = timeofday(datetime("11:59", 'InputFormat', 'HH:mm')) + dateEnd;
 
 % Mark true what flux chamber datasets you want to look at during the start
 % ann stop duration range.
-static = true;
-dynamic = true;
+processStatic = true;
+processDynamic = true;
 
 %% Data Settings
 % These values dictate the delta between datapoints and the smoothing
 % window that is used across the dataset.
 
-if static
-    licorRetime = seconds(5);
-    licorWindow = minutes(1);
+if processStatic
+    licorRetime = seconds(30);
+    licorWindow = minutes(5);
 end
 
-if dynamic
-    daqRetime = seconds(500);
-    daqWindow = minutes(1);
+if processDynamic
+    daqRetime = seconds(30);
+    daqWindow = minutes(60);
 end
 
 %% Collect Data
@@ -49,13 +52,14 @@ end
 % through listing.xlsx to collect metadata for deployment information,
 % sensor location, and calibrations required.
 
-% import metadata
-meta = readtable("../DATA/FLUX/listing.xlsx");
+% import metadata from table
+metadata = readtable("../DATA/FLUX/listing.xlsx");
 
 % variables for collecting data and metadata
-licorSets = {};
-daqSets = {};
+licorDatasets = {};
+daqDatasets = {};
 
+fprintf("Importing Data:\n")
 
 % for all days in range
 for day = dateStart:dateEnd
@@ -71,8 +75,8 @@ for day = dateStart:dateEnd
         file = directory(i);
 
         % select meta data row for current file-folder combination
-        row = strcmp(meta{:,1}, file.name) & strcmp(meta{:,2}, folder);
-        fileMeta = meta(row, :);
+        row = strcmp(metadata{:,1}, file.name) & strcmp(metadata{:,2}, folder);
+        fileMeta = metadata(row, :);
 
         % import licor file
         if file.name == "licor.txt"
@@ -81,15 +85,18 @@ for day = dateStart:dateEnd
             licor.data = IMPORTLICORFILE(file.folder + "/" + file.name);     % call import function
             metaID = ones(height(licor),1)*find(row);                        % get metadata id
             licor.data.C_CALIB = licor.data.C*0.9883+24.6914;                % apply licor calibration
-            licor.meta = meta(metaID, :);                                    % link metadata
+            licor.meta = metadata(metaID, :);                                    % link metadata
 
 
             % confine datetime to desired date range
             time = licor.data.T < stop - minutes(3) & licor.data.T > start - minutes(3);
             licor.data = licor.data(time, :);
+            licor.data = rmmissing(licor.data);
             licor.file = file.folder + "/" + file.name;
 
-            licorSets = [licorSets; {licor}];
+            fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+
+            licorDatasets = [licorDatasets; {licor}];
 
             % import DAQ-like file
         elseif file.name(end-3:end) == ".txt" || file.name(end-3:end) == ".TXT"
@@ -99,15 +106,16 @@ for day = dateStart:dateEnd
 
             time = daq.data.T < stop & daq.data.T > start;
             daq.data = daq.data(time, :);
+            daq.data = rmmissing(daq.data);
 
-            daq.meta = meta(metaID, :);                                    % link metadata
+            daq.meta = metadata(metaID, :);                                    % link metadata
 
             daq.file = file.folder + "/" + file.name;
 
-            disp(sprintf(file.name + "\t" + height(daq.data)));
+            fprintf("\tFile Loaded: (DAQ)\t%s/%s\n", folder, file.name);
 
             if height(daq.data) ~= 0
-                daqSets = [daqSets; {daq}];
+                daqDatasets = [daqDatasets; {daq}];
             end
 
         end
@@ -116,25 +124,25 @@ for day = dateStart:dateEnd
 end
 
 % remove variables if turned off
-if ~static
-    licorSets = [];
+if ~processStatic
+    licorDatasets = [];
 end
 
-if ~dynamic
-    daqSets = [];
+if ~processDynamic
+    daqDatasets = [];
 end
 
-if isempty(daqSets)
-    dynamic = false;
+if isempty(daqDatasets)
+    processDynamic = false;
 end
 
-if isempty(licorSets)
-    static = false;
+if isempty(licorDatasets)
+    processStatic = false;
 end
 
 % count number of datasets
-licorCount = height(licorSets);
-daqCount = height(daqSets);
+licorCount = height(licorDatasets);
+daqCount = height(daqDatasets);
 
 
 
@@ -147,8 +155,8 @@ subplot(3, 2, 1);
 hold on;
 
 h0 = [];
-for i = 1:height(licorSets)
-    licor = licorSets{i};
+for i = 1:height(licorDatasets)
+    licor = licorDatasets{i};
     p = plot(licor.data.T, licor.data.C, 'b.');
     h0 = [h0, p];
 end
@@ -156,7 +164,7 @@ end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
-legend(h0, "Raw LICOR 7810");
+legend(h0(1), "Raw LICOR 7810");
 title("Raw Static Chamber Data")
 subplot(3, 2, 2);
 hold on;
@@ -164,9 +172,9 @@ hold on;
 
 h0 = [];
 h1 = [];
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
         p0 = plot(daq.data.T, daq.data.CA, 'g.');
         p1 = plot(daq.data.T, daq.data.CB, 'm.');
         h0 = [h0, p0];
@@ -181,27 +189,27 @@ title("Raw Dynamic Chamber Data")
 
 %% Smooth Data
 
-if static
-    for i = 1:height(licorSets)
-        licor = licorSets{i};
+if processStatic
+    for i = 1:height(licorDatasets)
+        licor = licorDatasets{i};
         licorRaw= licor.data;
         licor.data = retime(licor.data,"regular", 'mean', 'TimeStep', licorRetime);
         licor.data = smoothdata(licor.data, 'movmean', licorWindow);
         licor.data = unique(licor.data);
-        licorSets{i} = licor;
+        licorDatasets{i} = licor;
     end
 
 
 end
 
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
         daqRaw = daq.data;
         daq.data = retime(daq.data,"regular", 'mean', 'TimeStep', daqRetime);
         daq.data = smoothdata(daq.data, 'movmean', daqWindow);
         daq.data = unique(daq.data);
-        daqSets{i} = daq;
+        daqDatasets{i} = daq;
 
     end
 
@@ -215,9 +223,9 @@ end
 % have a lower STD that the chamber because the chamber must reach steady
 % state after deployment.
 
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
 
         caSTD = std(daq.data.CA);
         cbSTD = std(daq.data.CB);
@@ -232,7 +240,6 @@ if dynamic
             daqTA = daq.data.TA;
             daqHA = daq.data.HA;
 
-
             daq.data.CB = daqCA;
             daq.data.TB = daqTA;
             daq.data.HB = daqHA;
@@ -243,7 +250,7 @@ if dynamic
 
         end
 
-        daqSets{i} = daq;
+        daqDatasets{i} = daq;
 
     end
 end
@@ -254,8 +261,8 @@ subplot(3, 2, 3);
 hold on;
 
 h0 = [];
-for i = 1:height(licorSets)
-    licor = licorSets{i};
+for i = 1:height(licorDatasets)
+    licor = licorDatasets{i};
     p = plot(licor.data.T, licor.data.C, 'b.');
     h0 = [h0, p];
 end
@@ -263,7 +270,7 @@ end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
-legend(h0, "Smoothed LICOR 7810");
+legend(h0(1), "Smoothed LICOR 7810");
 title("Smoothed Static Chamber Data")
 subplot(3, 2, 4);
 hold on;
@@ -271,9 +278,9 @@ hold on;
 
 h0 = [];
 h1 = [];
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
         p0 = plot(daq.data.T, daq.data.CA, 'g.');
         p1 = plot(daq.data.T, daq.data.CB, 'm.');
         h0 = [h0, p0];
@@ -289,11 +296,9 @@ title("Smoothed Dynamic Chamber Data")
 
 %% Apply Calibrations
 
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
-
-        disp(daq.meta.PAD_A);
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
 
         if (daq.meta.PAD_A_ELT_SENSOR == "E" || daq.meta.PAD_B_ELT_SENSOR == "C")
 
@@ -314,7 +319,7 @@ if dynamic
             daq.data.CB_CALIB = daq.data.CB;
         end
 
-        daqSets{i} = daq;
+        daqDatasets{i} = daq;
     end
 end
 
@@ -324,8 +329,8 @@ subplot(3, 2, 5);
 hold on;
 
 h0 = [];
-for i = 1:height(licorSets)
-    licor = licorSets{i};
+for i = 1:height(licorDatasets)
+    licor = licorDatasets{i};
     p = plot(licor.data.T, licor.data.C_CALIB, 'b.');
     h0 = [h0, p];
 end
@@ -333,7 +338,7 @@ end
 ylabel("CO_2 [ppm]")
 xlabel("Time")
 grid on;
-legend(h0, "Calibrated LICOR 7810");
+legend(h0(1), "Calibrated LICOR 7810");
 title("Calibrated Static Chamber Data")
 subplot(3, 2, 6);
 hold on;
@@ -341,9 +346,9 @@ hold on;
 
 h0 = [];
 h1 = [];
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
         p0 = plot(daq.data.T, daq.data.CA_CALIB, 'g.');
         p1 = plot(daq.data.T, daq.data.CB_CALIB, 'm.');
         h0 = [h0, p0];
@@ -360,9 +365,9 @@ title("Calibrated Dynamic Chamber Data")
 
 %% Calculate Static Flux
 
-if static
-    for i = 1:height(licorSets)
-        licor = licorSets{i};
+if processStatic
+    for i = 1:height(licorDatasets)
+        licor = licorDatasets{i};
         dc = [0; diff(licor.data.C_CALIB)];
         dt = [0; seconds(diff(licor.data.T))];
 
@@ -372,7 +377,7 @@ if static
         licor.data.DCDT_mg = cfg.ppm_to_mg(licor.data.DCDT);
         licor.data.C_mg = cfg.ppm_to_mg(licor.data.C_CALIB);
         licor.data.F_mg = (licor.data.DCDT_mg.*cfg.V)./cfg.As;
-        licorSets{i} = licor;
+        licorDatasets{i} = licor;
     end
 
 
@@ -381,10 +386,10 @@ end
 
 %% Calculate Dynamic Flux
 
-if dynamic
+if processDynamic
 
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
 
         Q = cfg.lpm_to_cms(mean(daq.data.Q/1000));
 
@@ -401,7 +406,7 @@ if dynamic
 
         daq.data.F_mg = (Q.*(CHAMBER-AMBIENT))./As;
 
-        daqSets{i} = daq;
+        daqDatasets{i} = daq;
     end
 end
 
@@ -418,9 +423,9 @@ hold on;
 
 h0 = [];
 h1 = [];
-if static
-    for i = 1:height(licorSets)
-        licor = licorSets{i};
+if processStatic
+    for i = 1:height(licorDatasets)
+        licor = licorDatasets{i};
         if (licor.meta.DEPLOY_SITE == "BURN")
             p0 = plot(licor.data.T, licor.data.F_mg,'r^');
             h0 = [h0; p0];
@@ -433,9 +438,9 @@ end
 
 h2 = [];
 h3 = [];
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
         if (daq.meta.DEPLOY_SITE == "BURN")
             p0 = plot(daq.data.T, daq.data.F_mg,'bs');
             h2 = [h2; p0];
@@ -457,40 +462,46 @@ yregion(range, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected 
 %% Lump Data Together
 
 
-licorBurnLump = [];
-licorUnburnLump = [];
-daqUnburnLump = [];
-daqBurnLump = [];
+licorBurn = [];
+licorUnburn = [];
+daqUnburn = [];
+daqBurn = [];
 
-if static
-    for i = 1:height(licorSets)
-        licor = licorSets{i};
+% collect all licor data
+if processStatic
+    for i = 1:height(licorDatasets)
+        licor = licorDatasets{i};
         if (licor.meta.DEPLOY_SITE == "BURN")
-            licorBurnLump = [licorBurnLump; licor.data];
+            licorBurn = [licorBurn; licor.data];
         else
-            licorUnburnLump = [licorUnburnLump; licor.data];
+            licorUnburn = [licorUnburn; licor.data];
         end
     end
 end
+licorUnburn = rmmissing(licorUnburn);
+licorBurn = rmmissing(licorBurn);
 
-if dynamic
-    for i = 1:height(daqSets)
-        daq = daqSets{i};
+if processDynamic
+    for i = 1:height(daqDatasets)
+        daq = daqDatasets{i};
 
         if (daq.meta.DEPLOY_SITE == "BURN")
-            daqBurnLump = [daqBurnLump; daq.data];
+            daqBurn = [daqBurn; daq.data];
         else
-            daqUnburnLump = [daqUnburnLump; daq.data];
+            daqUnburn = [daqUnburn; daq.data];
         end
 
     end
 end
+daqUnburn = rmmissing(daqUnburn);
+daqBurn = rmmissing(daqBurn);
+
 
 %% Measured Fluxes Over a Day Long Period
-daqBurnLumpDay=daqBurnLump.F_mg*86400;
-daqUnburnLumpDay=daqUnburnLump.F_mg*86400;
-licorBurnLumpDay=licorBurnLump.F_mg*86400;
-licorUnburnLumpDay=licorUnburnLump.F_mg*86400;
+daqBurnLumpDay=daqBurn.F_mg*86400;
+daqUnburnLumpDay=daqUnburn.F_mg*86400;
+licorBurnLumpDay=licorBurn.F_mg*86400;
+licorUnburnLumpDay=licorUnburn.F_mg*86400;
 %% Generate Box-And-Whisker Plots
 
 % create figure, hold on, and add grid
@@ -518,49 +529,23 @@ xlabel("Location Analyzed and Instrument Used");
 ylabel("Flux Rate [mg/m^2/day]");
 title("Summarized Data Distribution of Measured CO_2 Flux Rates");
 yregion(range*86400, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected Range');
-disp("Burned DAQ Mean " + mean(rmmissing(daqBurnLumpDay)))
-disp("Unburned DAQ Mean " + mean(rmmissing(daqUnburnLumpDay)))
-disp("Burned Licor Mean " + mean(rmmissing(licorBurnLumpDay)))
-disp("Unburned Licor Mean " + mean(rmmissing(licorUnburnLumpDay)))
-
-disp("Burned DAQ Median " + median(rmmissing(daqBurnLumpDay)))
-disp("Unburned DAQ Median " + median(rmmissing(daqUnburnLumpDay)))
-disp("Burned Licor Median " + median(rmmissing(licorBurnLumpDay)))
-disp("Unburned Licor Median " + median(rmmissing(licorUnburnLumpDay)))
-
-%% Generate Report
 
 
-fprintf("---- Flux Measurement Report ----\n")
 
-fprintf("\nTime Range\n\n")
-fprintf("\tStart:\t%s\n",start)
-fprintf("\tStop:\t%s\n",stop)
-
-if static
-    fprintf("\nStatic Chamber LICOR\n\n")
-    fprintf("\tNo. Points:\t%d\n", numel(licor))
-    fprintf("\tRetimed:\t%s\n",licorRetime);
-    fprintf("\tWindow:\t\t%s\n",licorWindow);
-
-    fprintf("\nStatic Chamber DAQ\n\n")
-    fprintf("\tNo. Points:\t%d\n", numel(daq))
-    fprintf("\tRetimed:\t%s\n",daqRetime);
-    fprintf("\tWindow:\t\t%s\n",daqWindow);
-
-    fprintf("\nStatic Calibrations\n\n")
-    fprintf("\tLICOR:\t0.9883x+24.6914 ppm\n")
+%% Generate Written Summary
 
 
-    fprintf("\nStatic Fluxes\n\n")
-    fprintf("\tStatic:\t\t\t%03f mg/m^2/s\n", mean(licor.data.F_mg))
-end
+fprintf("Reporting Data:\n")
+
+fprintf("\tSITE\tSOURCE\tMEAN\tMEDIAN\t (mg/m^2/s)\n")
+fprintf("\t%s\t%s\t%0.4f\t%0.4f\n","Burn", "DAQ", mean(daqBurnLumpDay), median(daqBurnLumpDay))
 
 
-if  dynamic
-    %fprintf("\tCB:\t\tLinear R^2 %0.4f\n", modelCB.model_2_lin.Rsquared.Ordinary)
-    %fprintf("\tCA:\t\tLinear R^2 %0.4f\n", modelCA.model_1_lin.Rsquared.Ordinary)
-    %fprintf("\tDynamic:\t\t%03f mg/m^2/s\n", mean(rmmissing(daq.F_mg)))
-    %fprintf("\tDynamic Floor:\t%03f mg/m^2/s\n", mean(rmmissing(daq.F_FLOOR_mg)))
-end
-
+% disp("Burned DAQ Mean " + mean(rmmissing(daqBurnLumpDay)))
+% disp("Unburned DAQ Mean " + mean(rmmissing(daqUnburnLumpDay)))
+% disp("Burned Licor Mean " + mean(rmmissing(licorBurnLumpDay)))
+% disp("Unburned Licor Mean " + mean(rmmissing(licorUnburnLumpDay)))
+% disp("Burned DAQ Median " + median(rmmissing(daqBurnLumpDay)))
+% disp("Unburned DAQ Median " + median(rmmissing(daqUnburnLumpDay)))
+% disp("Burned Licor Median " + median(rmmissing(licorBurnLumpDay)))
+% disp("Unburned Licor Median " + median(rmmissing(licorUnburnLumpDay)))
