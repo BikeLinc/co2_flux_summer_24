@@ -38,7 +38,7 @@ processDynamic = true;
 % window that is used across the dataset.
 
 if processStatic
-    licorRetime = seconds(30);
+    licorRetime = seconds(60);
     licorWindow = minutes(5);
 end
 
@@ -81,22 +81,81 @@ for day = dateStart:dateEnd
         % import licor file
         if file.name == "licor.txt"
 
-
             licor.data = IMPORTLICORFILE(file.folder + "/" + file.name);     % call import function
             metaID = ones(height(licor),1)*find(row);                        % get metadata id
             licor.data.C_CALIB = licor.data.C*0.9883+24.6914;                % apply licor calibration
             licor.meta = metadata(metaID, :);                                    % link metadata
 
+            if ~isempty(licor.meta(1, 15:end))
 
-            % confine datetime to desired date range
-            time = licor.data.T < stop - minutes(3) & licor.data.T > start - minutes(3);
-            licor.data = licor.data(time, :);
-            licor.data = rmmissing(licor.data);
-            licor.file = file.folder + "/" + file.name;
+                d1 = datetime(licor.meta{1,15:16});
+                d2 = datetime(licor.meta{1,17:18});
+                d3 = datetime(licor.meta{1,19:20});
+                d4 = datetime(licor.meta{1,21:22});
 
-            fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+                if ~isnat(d1(1))
+                    time = licor.data.T < d1(2) & licor.data.T > d1(1);
+                    licor.data = licor.data(time, :);
+                    licor.data = rmmissing(licor.data);
+                    licor.file = file.folder + "/" + file.name;
+        
+                    fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+        
+                    if height(licor.data) ~= 0
+                        licorDatasets = [licorDatasets; {licor}];
+                    end
+                end
 
-            licorDatasets = [licorDatasets; {licor}];
+                if ~isnat(d2(1))
+                    time = licor.data.T < d2(2) & licor.data.T > d2(1);
+                    licor.data = licor.data(time, :);
+                    licor.data = rmmissing(licor.data);
+                    licor.file = file.folder + "/" + file.name;
+        
+                    fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+        
+                    if height(licor.data) ~= 0
+                        licorDatasets = [licorDatasets; {licor}];
+                    end
+                end
+
+                if ~isnat(d3(1))
+                    time = licor.data.T < d3(2) & licor.data.T > d3(1);
+                    licor.data = licor.data(time, :);
+                    licor.data = rmmissing(licor.data);
+                    licor.file = file.folder + "/" + file.name;
+        
+                    fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+        
+                    if height(licor.data) ~= 0
+                        licorDatasets = [licorDatasets; {licor}];
+                    end
+                end
+
+                if ~isnat(d4(1))
+                    time = licor.data.T < d4(2) & licor.data.T > d4(1);
+                    licor.data = licor.data(time, :);
+                    licor.data = rmmissing(licor.data);
+                    licor.file = file.folder + "/" + file.name;
+        
+                    fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+        
+                    if height(licor.data) ~= 0
+                        licorDatasets = [licorDatasets; {licor}];
+                    end
+                end
+
+            end
+
+            % % confine datetime to desired date range
+            % time = licor.data.T < stop - minutes(3) & licor.data.T > start - minutes(3);
+            % licor.data = licor.data(time, :);
+            % licor.data = rmmissing(licor.data);
+            % licor.file = file.folder + "/" + file.name;
+            % 
+            % fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+            % 
+            % licorDatasets = [licorDatasets; {licor}];
 
             % import DAQ-like file
         elseif file.name(end-3:end) == ".txt" || file.name(end-3:end) == ".TXT"
@@ -537,7 +596,7 @@ yregion(range*86400, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Exp
 
 fprintf("Reporting Data:\n")
 
-fprintf("\tSITE\tSOURCE\tMEAN\tMEDIAN\t (mg/m^2/s)\n")
+fprintf("\tSITE\tSOURCE\tMEAN\t\tMEDIAN\t (mg/m^2/s)\n")
 fprintf("\t%s\t%s\t%0.4f\t%0.4f\n","Burn", "DAQ", mean(daqBurnLumpDay), median(daqBurnLumpDay))
 
 
