@@ -18,45 +18,53 @@ addpath(genpath('../../UTILS'));
 % import elt sensor dataset
 
 % CLOSED LOOP P1
-daq0 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_8_24.csv");
-daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
-daq0Idx = daq0.T > datetime(daq0Time(1)) & daq0.T < datetime(daq0Time(2));
-daq0 = daq0(daq0Idx, :);
+%
+% ELT C & E Calibrations
+% daq0 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_8_24.csv");
+% daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+% daq0Idx = daq0.T > datetime(daq0Time(1)) & daq0.T < datetime(daq0Time(2));
+% daq0 = daq0(daq0Idx, :);
+% 
+% % CLOSED LOOP P2
+% daq1 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_9_24.csv");
+% daq1Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+% daq1Idx = daq1.T > datetime(daq1Time(1)) & daq1.T < datetime(daq1Time(2));
+% daq1 = daq1(daq1Idx, :);
+% 
+% % AMBIENT CALIB
+% daq2 = IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_09.TXT");
+% daq2 = [daq2; IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_10.TXT")];
+% daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
+% daq2Idx = daq2.T > datetime(daq2Time(1)) & daq2.T < datetime(daq2Time(2));
+% daq2 = daq2(daq2Idx, :);
+% 
+% daq = [daq0; daq1; daq2];
+% daq = rmmissing(daq);
 
-% CLOSED LOOP P2
-daq1 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_9_24.csv");
-daq1Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
-daq1Idx = daq1.T > datetime(daq1Time(1)) & daq1.T < datetime(daq1Time(2));
-daq1 = daq1(daq1Idx, :);
 
-% AMBIENT CALIB
-daq2 = IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_09.TXT");
-daq2 = [daq2; IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_10.TXT")];
-daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
-daq2Idx = daq2.T > datetime(daq2Time(1)) & daq2.T < datetime(daq2Time(2));
-daq2 = daq2(daq2Idx, :);
-
-daq = [daq0; daq1; daq2];
-daq = rmmissing(daq);
 
 
 % from elt sensor dataset, grab per-sensor dataset
 % sensor 1 & 2 (CA & CB)
+
+% 
+% % import licor reference instrument dataset
+% licor0 = IMPORTLICORFILE("../../DATA/CALIB/07.08.2024/licor.txt");
+% daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+% daq0Idx = licor0.T > datetime(daq0Time(1)) & licor0.T < datetime(daq0Time(2));
+% licor0 = licor0(daq0Idx, :);
+% 
+% licor1 = IMPORTLICORFILE("../../DATA/CALIB/07.09.2024/licor_7_10_24.txt");
+% daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
+% daq2Idx = licor1.T > datetime(daq2Time(1)) & licor1.T < datetime(daq2Time(2));
+% licor1 = licor1(daq2Idx, :);
+% licor = [licor0; licor1];
+% licor.T = licor.T + minutes(3);
+% licor = rmmissing(licor);
+
+licor = IMPORTLICORFILE("../../DATA/CALIB/ELT_H/licor.txt");
+daq = IMPORTDAQFILE("../../DATA/CALIB/ELT_H/daq.csv");
 sensors = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
-
-% import licor reference instrument dataset
-licor0 = IMPORTLICORFILE("../../DATA/CALIB/07.08.2024/licor.txt");
-daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
-daq0Idx = licor0.T > datetime(daq0Time(1)) & licor0.T < datetime(daq0Time(2));
-licor0 = licor0(daq0Idx, :);
-
-licor1 = IMPORTLICORFILE("../../DATA/CALIB/07.09.2024/licor_7_10_24.txt");
-daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
-daq2Idx = licor1.T > datetime(daq2Time(1)) & licor1.T < datetime(daq2Time(2));
-licor1 = licor1(daq2Idx, :);
-licor = [licor0; licor1];
-licor.T = licor.T + minutes(3);
-licor = rmmissing(licor);
 
 %% Remove Errors
 
@@ -86,10 +94,10 @@ legend('location','eastoutside')
 
 %% Retime, Smooth, and Remove Outliers
 % section settings
-smooth_dt = minutes(15);
-retime_dt = seconds(30);
+smooth_dt = minutes(90);
+retime_dt = seconds(60*5);
 outlier_bounds = [10, 90];
-outlier_remove = true;
+outlier_remove = false;
 
 % smooth and retime sensor datasets
 for index = 1:2
@@ -239,14 +247,14 @@ end
 
 %% Export Models
 
-sensor_id = "C";
+sensor_id = "0";
 training_id = "CL";
 model_1_lin = models{1,1};
 model_1_net = models{2,1};
 save("models/"+sensor_id+"-"+training_id+"-linear-"+datestr(datetime("today")),"model_1_lin");
 save("models/"+sensor_id+"-"+training_id+"-net-"+datestr(datetime("today")),"model_1_net");
 
-sensor_id = "E";
+sensor_id = "H";
 training_id = "CL";
 model_2_lin = models{1,2};
 model_2_net = models{2,2};

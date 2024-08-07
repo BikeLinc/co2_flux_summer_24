@@ -101,6 +101,8 @@ for day = dateStart:dateEnd
         
                     fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
         
+                    licor.meta.DEPLOY_SITE = "BURN";
+
                     if height(licor.data) ~= 0
                         licorDatasets = [licorDatasets; {licor}];
                     end
@@ -113,6 +115,8 @@ for day = dateStart:dateEnd
                     licor.file = file.folder + "/" + file.name;
         
                     fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+
+                    licor.meta.DEPLOY_SITE = "BURN";
         
                     if height(licor.data) ~= 0
                         licorDatasets = [licorDatasets; {licor}];
@@ -126,6 +130,8 @@ for day = dateStart:dateEnd
                     licor.file = file.folder + "/" + file.name;
         
                     fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+
+                    licor.meta.DEPLOY_SITE = "UNBURN";
         
                     if height(licor.data) ~= 0
                         licorDatasets = [licorDatasets; {licor}];
@@ -139,6 +145,8 @@ for day = dateStart:dateEnd
                     licor.file = file.folder + "/" + file.name;
         
                     fprintf("\tFile Loaded: (LICOR)\t%s/%s\n", folder, file.name);
+
+                    licor.meta.DEPLOY_SITE = "UNBURN";
         
                     if height(licor.data) ~= 0
                         licorDatasets = [licorDatasets; {licor}];
