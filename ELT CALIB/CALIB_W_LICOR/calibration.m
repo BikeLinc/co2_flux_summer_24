@@ -94,8 +94,8 @@ legend('location','eastoutside')
 
 %% Retime, Smooth, and Remove Outliers
 % section settings
-smooth_dt = minutes(15);
-retime_dt = seconds(10);
+smooth_dt = minutes(30);
+retime_dt = seconds(30);
 outlier_bounds = [10, 90];
 outlier_remove = true;
 
@@ -213,6 +213,8 @@ for index = 1:2
     sensor = table2timetable(sensor);
     sensors{1,index} = sensor;
 end
+
+%% Begin Plotting
 
 fprintf("Closed Loop Calibration - Calibration Results\n")
 

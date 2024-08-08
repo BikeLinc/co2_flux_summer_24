@@ -42,6 +42,8 @@ Sd2Card card;
 SdVolume volume;
 SdFile root;
 
+File file;
+
 float readThermistor(int i) {
   float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
   int Vo = analogRead(i);
@@ -123,6 +125,22 @@ void setup() {
 	Serial.println("online");
 
 	Serial.println("--------");
+
+
+  // Add Date
+  DateTime now = rtc.now();
+  //date += String(millis());
+  if (!SINGLE_DATA_LOG) {
+    char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
+    snprintf(filename, sizeof(filename), "%02d_%02d_%02d.txt", now.year() % 100, now.month(), now.day());
+    file = SD.open(filename, FILE_WRITE);
+    Serial.print(filename);
+  }
+  else {
+    const char* filename = "datalog.txt";
+    file = SD.open(filename, FILE_WRITE);
+    Serial.print(filename);
+  }
 
 }
 
@@ -255,21 +273,6 @@ void loop() {
 
 		DateTime now = rtc.now();		
 
-    File file;
-    if (!SINGLE_DATA_LOG) {
-		  char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
-  		snprintf(filename, sizeof(filename), "%02d_%02d_%02d.txt", now.year() % 100, now.month(), now.day());
-      file = SD.open(filename, FILE_WRITE);
-      Serial.print(filename);
-    }
-    else {
-      const char* filename = "datalog.txt";
-      file = SD.open(filename, FILE_WRITE);
-      Serial.print(filename);
-    }
-
-   
-
 
 		if (file) {
 			
@@ -295,7 +298,7 @@ void loop() {
 			delay(50);
 			digitalWrite(DATA_LED_PIN, LOW);
 		}
-		file.close();
+		//file.close();
 
 	}
 
