@@ -44,7 +44,7 @@ end
 
 if processDynamic
     daqRetime = seconds(30);
-    daqWindow = minutes(60);
+    daqWindow = minutes(30);
 end
 
 %% Collect Data
@@ -579,16 +579,13 @@ grid on;
 % lumped data to plot
 x1 = daqBurnLumpDay;
 x2 = daqUnburnLumpDay;
-x3 = licorBurnLumpDay;
-x4 = licorUnburnLumpDay;
-x = [x1; x2; x3; x4];
+
+x = [x1; x2];
 
 % lumped categories to plot
 g1 = repmat({'DAQ Burned'}, height(x1),1);
 g2 = repmat({'DAQ Un-Burned'}, height(x2),1);
-g3 = repmat({'LICOR Burned'}, height(x3),1);
-g4 = repmat({'LICOR Un-Burned'}, height(x4),1);
-g = [g1; g2; g3; g4];
+g = [g1; g2];
 
 % plot box and whisker
 boxplot(x, g);

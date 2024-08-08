@@ -20,26 +20,26 @@ addpath(genpath('../../UTILS'));
 % CLOSED LOOP P1
 %
 % ELT C & E Calibrations
-% daq0 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_8_24.csv");
-% daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
-% daq0Idx = daq0.T > datetime(daq0Time(1)) & daq0.T < datetime(daq0Time(2));
-% daq0 = daq0(daq0Idx, :);
-% 
-% % CLOSED LOOP P2
-% daq1 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_9_24.csv");
-% daq1Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
-% daq1Idx = daq1.T > datetime(daq1Time(1)) & daq1.T < datetime(daq1Time(2));
-% daq1 = daq1(daq1Idx, :);
-% 
-% % AMBIENT CALIB
-% daq2 = IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_09.TXT");
-% daq2 = [daq2; IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_10.TXT")];
-% daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
-% daq2Idx = daq2.T > datetime(daq2Time(1)) & daq2.T < datetime(daq2Time(2));
-% daq2 = daq2(daq2Idx, :);
-% 
-% daq = [daq0; daq1; daq2];
-% daq = rmmissing(daq);
+daq0 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_8_24.csv");
+daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+daq0Idx = daq0.T > datetime(daq0Time(1)) & daq0.T < datetime(daq0Time(2));
+daq0 = daq0(daq0Idx, :);
+
+% CLOSED LOOP P2
+daq1 = IMPORTDAQFILE("../../DATA/CALIB/07.08.2024/daq_7_9_24.csv");
+daq1Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+daq1Idx = daq1.T > datetime(daq1Time(1)) & daq1.T < datetime(daq1Time(2));
+daq1 = daq1(daq1Idx, :);
+
+% AMBIENT CALIB
+daq2 = IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_09.TXT");
+daq2 = [daq2; IMPORTDAQFILE("../../DATA/CALIB/07.09.2024/24_07_10.TXT")];
+daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
+daq2Idx = daq2.T > datetime(daq2Time(1)) & daq2.T < datetime(daq2Time(2));
+daq2 = daq2(daq2Idx, :);
+
+daq = [daq0; daq1; daq2];
+daq = rmmissing(daq);
 
 
 
@@ -47,23 +47,23 @@ addpath(genpath('../../UTILS'));
 % from elt sensor dataset, grab per-sensor dataset
 % sensor 1 & 2 (CA & CB)
 
-% 
-% % import licor reference instrument dataset
-% licor0 = IMPORTLICORFILE("../../DATA/CALIB/07.08.2024/licor.txt");
-% daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
-% daq0Idx = licor0.T > datetime(daq0Time(1)) & licor0.T < datetime(daq0Time(2));
-% licor0 = licor0(daq0Idx, :);
-% 
-% licor1 = IMPORTLICORFILE("../../DATA/CALIB/07.09.2024/licor_7_10_24.txt");
-% daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
-% daq2Idx = licor1.T > datetime(daq2Time(1)) & licor1.T < datetime(daq2Time(2));
-% licor1 = licor1(daq2Idx, :);
-% licor = [licor0; licor1];
-% licor.T = licor.T + minutes(3);
-% licor = rmmissing(licor);
 
-licor = IMPORTLICORFILE("../../DATA/CALIB/ELT_H/licor.txt");
-daq = IMPORTDAQFILE("../../DATA/CALIB/ELT_H/daq.csv");
+% import licor reference instrument dataset
+licor0 = IMPORTLICORFILE("../../DATA/CALIB/07.08.2024/licor.txt");
+daq0Time = ["7/8/2024  9:45:00" "7/9/2024  7:00:00"];
+daq0Idx = licor0.T > datetime(daq0Time(1)) & licor0.T < datetime(daq0Time(2));
+licor0 = licor0(daq0Idx, :);
+
+licor1 = IMPORTLICORFILE("../../DATA/CALIB/07.09.2024/licor_7_10_24.txt");
+daq2Time = ["7/9/2024  7:30:00" "7/10/2024  6:40:00"];
+daq2Idx = licor1.T > datetime(daq2Time(1)) & licor1.T < datetime(daq2Time(2));
+licor1 = licor1(daq2Idx, :);
+licor = [licor0; licor1];
+licor.T = licor.T + minutes(3);
+licor = rmmissing(licor);
+
+%licor = IMPORTLICORFILE("../../DATA/CALIB/ELT_H/licor.txt");
+%daq = IMPORTDAQFILE("../../DATA/CALIB/ELT_H/daq.csv");
 sensors = {[daq(:,[2,3,4])], [daq(:,[5,6,7])]};
 
 %% Remove Errors
@@ -94,10 +94,10 @@ legend('location','eastoutside')
 
 %% Retime, Smooth, and Remove Outliers
 % section settings
-smooth_dt = minutes(90);
-retime_dt = seconds(60*5);
+smooth_dt = minutes(15);
+retime_dt = seconds(10);
 outlier_bounds = [10, 90];
-outlier_remove = false;
+outlier_remove = true;
 
 % smooth and retime sensor datasets
 for index = 1:2
@@ -182,7 +182,7 @@ for index = 1:2
 end
 
 %% Generate Calibrations
-fprintf("Closed Loop Calibration - Calibration Results\n")
+
 models = cell(2,2);
 for index = 1:2
     sensor = sensors{1,index};
@@ -210,26 +210,58 @@ for index = 1:2
     lin_rmse = models{1,index}.RMSE;
     net_rmse = sqrt(mean((net_pred - testY).^2));
 
-    % plot metrics
+    sensor = table2timetable(sensor);
+    sensors{1,index} = sensor;
+end
+
+fprintf("Closed Loop Calibration - Calibration Results\n")
+
+for index = 1:2
+    sensor = sensors{1,index};
+    sensor = timetable2table(sensor);
+
+    % plot metrics (1)
     figure()
-    
+
     subplot(2,1,1)
     hold on; grid on;
     plot(testX(:,1), testY, 'r-.', 'DisplayName', "Ground Truth (LICOR)");
     plot(testX(:,1), lin_pred,'gs', 'DisplayName', "Linear Model Response");
     plot(testX(:,1), net_pred,'mo', 'DisplayName', "Neural Model Response");
     legend('location','eastoutside');
-    xlabel("X CO_2 [ppm]")
-    ylabel("Y CO_2 [ppm]")
+    xlabel("Predictor CO_2 [ppm]")
+    ylabel("Response CO_2 [ppm]")
     subplot(2,1,2)
     hold on; grid on;
     yline(0, 'r-.', 'DisplayName', "Ground Truth (LICOR)")
-    plot(testX(:,1), lin_pred-testY,'gs', 'DisplayName', "Linear Model Response Residuals");
-    plot(testX(:,1), net_pred-testY,'mo', 'DisplayName', "Neural Model Response Residuals");
+    plot(testX(:,1), lin_pred-testY,'gs', 'DisplayName', "Linear Model Residuals");
+    plot(testX(:,1), net_pred-testY,'mo', 'DisplayName', "Neural Model Residuals");
     legend('location','eastoutside');
-    xlabel("X CO_2 [ppm]")
-    ylabel("Y CO_2 Residuals [ppm]")
+    xlabel("Predictor CO_2 [ppm]")
+    ylabel("Response CO_2 Residuals [ppm]")
     sgtitle("Closed Loop Calibration - Calibration Model Response - Sensor " + index)
+
+    % plot metrics - (w/ Dr. Casey suggestions)
+    figure()
+    
+    subplot(2,1,1)
+    hold on; grid on;
+    plot(testY, testY, 'r-.', 'DisplayName', "1:1 Fit");
+    plot(lin_pred, testY,'gs', 'DisplayName', "Linear Model");
+    plot(net_pred, testY,'mo', 'DisplayName', "Neural Model");
+    legend('location','eastoutside');
+    xlabel("Response CO_2 [ppm]")
+    ylabel("True CO_2 [ppm]")
+    subplot(2,1,2)
+    hold on; grid on;
+    yline(0, 'r-.', 'DisplayName', "1:1 Fit")
+    plot(testY, lin_pred-testY,'gs', 'DisplayName', "Linear Model Response Residuals");
+    plot(testY, net_pred-testY,'mo', 'DisplayName', "Neural Model Response Residuals");
+    legend('location','eastoutside');
+    xlabel("True CO_2 [ppm]")
+    ylabel("True CO_2 Residuals [ppm]")
+    sgtitle("Closed Loop Calibration - Calibration Model Metrics - Sensor " + index)
+
 
     % print metrics
     fprintf("Sensor %d\n", index);
