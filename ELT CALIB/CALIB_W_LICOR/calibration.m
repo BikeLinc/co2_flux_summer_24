@@ -124,6 +124,23 @@ for index = 1:2
     sensor = sensors{1,index};
     sensor = synchronize(sensor, licor);
     sensor = rmmissing(sensor);
+
+    sensor = renamevars(sensor, [1, 2, 3, 4], ["X_C", "X_T", "X_H", "Y_C"]);
+
+    sensors{1,index} = sensor;
+end
+
+%% Interaction Terms
+
+for index = 1:2
+    sensor = sensors{1,index};
+
+
+    sensor.X_CDT = sensor.X_C ./ sensor.X_T;
+    sensor.X_CDH = sensor.X_C ./ sensor.X_H;
+    sensor.X_LNC = log(sensor.X_C);
+    sensor.X_CDLNC = sensor.X_C ./ log(sensor.X_C);
+
     sensors{1,index} = sensor;
 end
 
@@ -146,9 +163,9 @@ for index = 1:2
         end
         
         % calculate correlation, ignoring NaNs
-        valid_idx = ~isnan(sensor.C) & ~isnan(shifted_C);
+        valid_idx = ~isnan(sensor.Y_C) & ~isnan(shifted_C);
         if sum(valid_idx) > 100
-            current_corr = corr(sensor.C(valid_idx), shifted_C(valid_idx));
+            current_corr = corr(sensor.Y_C(valid_idx), shifted_C(valid_idx));
             % update best correlation and lag
             if current_corr > best_corr
                 best_corr = current_corr;
@@ -183,6 +200,9 @@ end
 
 %% Generate Calibrations
 
+predictors = ["X_C", "X_T", "X_CDT", "X_CDLNC"];
+target = "Y_C";
+
 models = cell(2,2);
 for index = 1:2
     sensor = sensors{1,index};
@@ -190,16 +210,16 @@ for index = 1:2
 
     % partition data
     cv = cvpartition(size(sensor,1), 'HoldOut', 0.3);
-    trainX = table2array(sensor(~cv.test, 2)); %2:4 for all predictors
-    trainY = table2array(sensor(~cv.test, 5));
-    testX = table2array(sensor(cv.test, 2)); %2:4 for all predictors
-    testY = table2array(sensor(cv.test, 5));
+    trainX = table2array(sensor(~cv.test, predictors)); %2:4 for all predictors
+    trainY = table2array(sensor(~cv.test, target));
+    testX = table2array(sensor(cv.test, predictors)); %2:4 for all predictors
+    testY = table2array(sensor(cv.test, target));
 
     % linear regression
     models{1,index} = fitlm(trainX, trainY);
 
     % network regression
-    models{2,index} = feedforwardnet([32, 32]);
+    models{2,index} = feedforwardnet([16, 16]);
     models{2,index} = train(models{2,index}, trainX', trainY');
 
     % calculate metrics
@@ -213,7 +233,7 @@ for index = 1:2
     sensor = table2timetable(sensor);
     sensors{1,index} = sensor;
 end
-
+%%
 fprintf("Closed Loop Calibration - Calibration Results\n")
 
 for index = 1:2
