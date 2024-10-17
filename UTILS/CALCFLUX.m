@@ -16,13 +16,10 @@ config.uQ = config.lpm_to_cms(config.uQ);
 data = smoothdata(data, 'movmean', config.smooth_dt);
 
 % calculate flux
-data.F = 1e6*((data.Q.*(data.CB-mean(data.CA)))./config.As);
-data.F_licor = 1e6*((data.Q.*(data.C-min(data.C)))./config.As);
+data.F = 1e6*((mean(data.Q).*(data.CB-min(data.CA)))./config.As);
+data.F_licor = 1e6*((mean(data.Q).*(data.C-min(data.C)))./config.As);
 data.UF = 1e6*config.flux_uncert(data.CB-data.CA, config.As, co2_err, config.uQ, data.Q);
 
-disp("Flux(licor): " + mean(data.F_licor))
-disp("Flux(daq): " + mean(data.F) + " [" + mean(data.UF)+"]");
-disp("Flux(delivered): " + f_delivered);
 
 
 % convert to working units
@@ -39,6 +36,7 @@ data.CA = config.ppm_to_mg(data.CA);
 data.CB = config.ppm_to_mg(data.CB);
 
 
+
 Q = mean(data.Q);
 Ca_licor = min(data.C);
 Cb_licor = max(data.C);
@@ -51,10 +49,6 @@ f_daq = (Q*Cb_daq-(Q-sp)*Ca_daq)./config.As;
 f_uncert = config.flux_uncert(Cb_daq - Ca_daq, config.As, config.uQ, co2_err, Q);
 
 f_delivered = (config.ppm_to_mg(3003)*sp)/config.As;
-
-disp("Flux(licor): " + f_licor)
-disp("Flux(daq): " + f_daq + " [" + f_uncert+"]");
-disp("Flux(delivered): " + f_delivered);
 
 results = [f_licor, f_daq, f_delivered, f_uncert];
 

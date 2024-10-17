@@ -16,7 +16,7 @@
 // Enable Subroutines
 const bool DATALOG = true;
 const bool SAMPLE = true;
-const bool SINGLE_DATA_LOG = true;
+const bool SINGLE_DATA_LOG = false;
 
 const char* LOGFILENAME = "datalog.txt";
 
@@ -60,8 +60,6 @@ void setup() {
 	
 	Serial.begin(115200);	// Serial @ 115200 Baud
 
-	Serial.println("********");
-
 	Wire.begin();			// I2C 2-Wire
 
 	// Init Diagnostic LED
@@ -82,27 +80,23 @@ void setup() {
   //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
 	// SD Card Setup
-	Serial.print("SD ... ");
 	if (!SD.begin(SD_CS_PIN)) {
-		Serial.println("offline");
 	} else {
-		Serial.println("online");
 	}
 
 	// ELT Setup
-	Serial.print("ELT ...");
 	for (uint8_t t=0; t<8; t++) {
 		tcaselect(t);
 		for (uint8_t addr = 0; addr<=127; addr++) {
 			if (addr == TCAADDR) continue;
 			Wire.beginTransmission(addr);
 			if (!Wire.endTransmission()) {
-				//if (addr == ELT_ADDR) {
-					Serial.print(", port ");
-					Serial.print(t);
-          Serial.print(" 0x");
-          Serial.print(addr, HEX);
-				//}
+				if (addr == ELT_ADDR) {
+					//Serial.print(", port ");
+					//Serial.print(t);
+          //Serial.print(" 0x");
+          //Serial.print(addr, HEX);
+				}
 			}
 		}
 		/* Wakup Sensor & Clear
@@ -119,28 +113,9 @@ void setup() {
 	Serial.println();
 	
 	// DHT Setup
-	Serial.print("DHT11 ... ");
 	dhtA.begin();
 	dhtB.begin();
-	Serial.println("online");
 
-	Serial.println("--------");
-
-
-  // Add Date
-  DateTime now = rtc.now();
-  //date += String(millis());
-  if (!SINGLE_DATA_LOG) {
-    char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
-    snprintf(filename, sizeof(filename), "%02d_%02d_%02d.txt", now.year() % 100, now.month(), now.day());
-    file = SD.open(filename, FILE_WRITE);
-    Serial.print(filename);
-  }
-  else {
-    const char* filename = "datalog.txt";
-    file = SD.open(filename, FILE_WRITE);
-    Serial.print(filename);
-  }
 
 }
 
@@ -201,9 +176,9 @@ void loop() {
 		co2B = getS300CO2();
 
 		// CO2 Sensor - Detect Errors
-		if(co2A == 0 || co2A == 64537 || co2A == 2500)
+		if(co2A == 0 || co2A == 64537 || co2A == 2160)
 			co2A = -99999;
-		if(co2B == 0 || co2B == 64537 || co2B == 2500)	
+		if(co2B == 0 || co2B == 64537 || co2B == 2160)	
 			co2B = -99999;
 
 		// Temp. & Humid. - Read DHT
@@ -271,7 +246,19 @@ void loop() {
 		// Data logging
 		Serial.print("data -> ");
 
-		DateTime now = rtc.now();		
+    DateTime now = rtc.now();
+    //date += String(millis());
+    if (!SINGLE_DATA_LOG) {
+      char filename[13]; // 8.3 filename format (8 characters + '.' + 3 characters + null terminator)
+      snprintf(filename, sizeof(filename), "%02d_%02d_%02d.txt", now.year() % 100, now.month(), now.day());
+      file = SD.open(filename, FILE_WRITE);
+      Serial.print(filename);
+    }
+    else {
+      const char* filename = "datalog.txt";
+      file = SD.open(filename, FILE_WRITE);
+      Serial.print(filename);
+    }	
 
 
 		if (file) {
@@ -298,7 +285,7 @@ void loop() {
 			delay(50);
 			digitalWrite(DATA_LED_PIN, LOW);
 		}
-		//file.close();
+		file.close();
 
 	}
 

@@ -593,6 +593,26 @@ xlabel("Location Analyzed and Instrument Used");
 ylabel("Flux Rate [mg/m^2/day]");
 title("Summarized Data Distribution of Measured CO_2 Flux Rates");
 yregion(range*86400, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected Range');
+legend();
+
+
+% create timeseries plot of fluexes, hourly
+figure();
+hold on;
+grid on;
+licorBurnLumpHour = retime(licorBurn, 'hourly', 'mean');
+licorUnburnLumpHour = retime(licorUnburn, 'hourly', 'mean');
+daqBurnLumpHour = retime(daqBurn, 'hourly', 'mean');
+daqUnburnLumpHour = retime(daqUnburn, 'hourly', 'mean');
+plot(licorBurnLumpHour.T, licorBurnLumpHour.F_mg*86400, 'r');
+plot(licorUnburnLumpHour.T, licorUnburnLumpHour.F_mg*86400, 'b');
+plot(daqBurnLumpHour.T, daqBurnLumpHour.F_mg*86400, 'g');
+plot(daqUnburnLumpHour.T, daqUnburnLumpHour.F_mg*86400, 'm');
+xlabel("Time");
+ylabel("Flux Rate [mg/m^2/day]");
+title("Hourly Measured CO_2 Flux Rates");
+legend("Static Burn", "Static Un-Burn", "Dynamic Burn", "Dynamic Un-Burn");
+yregion(range*86400, 'FaceColor',"magenta",'FaceAlpha', 0.1, 'DisplayName', 'Expected Range');
 
 
 
