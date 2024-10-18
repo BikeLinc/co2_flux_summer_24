@@ -38,8 +38,8 @@ for i = 1:length(amb_files)
 end
 
 % Combine Datasets
-daq = [cl_daq;];
-daq = [amb_daq];
+daq = [cl_daq; amb_daq];
+%daq = [amb_daq];
 daq = rmmissing(daq);
 
 % from elt sensor dataset, grab per-sensor dataset
@@ -57,8 +57,8 @@ amb_licor_idx = amb_licor.T > datetime(amb_times(1)) & amb_licor.T < datetime(am
 amb_licor = amb_licor(amb_licor_idx, :);
 
 % Combine Datasets
-licor = [cl_licor;];
-licor = [amb_licor];
+licor = [cl_licor; amb_licor];
+%licor = [amb_licor];
 licor.T = licor.T + minutes(3); % LICOR timestamp is 3 minutes behind
 licor = rmmissing(licor);
 
@@ -357,8 +357,4 @@ for index = 1:2
     amb_sensors{1,index} = sensor;
 end
 
-
-
-
-exportgraphics(fig_resid, "figs/"+datestr(datetime("today"))+"___resid_just_ambient.png", 'Resolution', '300');
-exportgraphics(fig_perf, "figs/"+datestr(datetime("today"))+"___perf_just_ambient.png", 'Resolution', '300');
+%% Generate Calibration 1:1 Plots for Validation Data

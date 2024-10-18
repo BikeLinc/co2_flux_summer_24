@@ -109,10 +109,10 @@ slope = lm.Coefficients.Estimate(2);
 % plot 1:1 fit and corrected fluxes
 figure();
 hold on;
-plot(delivered,delivered, '--', 'DisplayName', '1:1 Fit');
-errorbar(delivered, low_cost*slope + bias, low_cost_err, 'x-', 'DisplayName', "Low-Cost System w/ Correction");
-errorbar(delivered, low_cost, low_cost_err, '.-', 'DisplayName', "Low-Cost System");
-plot(delivered, li_7810, 'o-.','DisplayName', "LI-7810");
+plot(delivered,delivered, 'k-', 'DisplayName', '1:1 Fit');
+errorbar(delivered, low_cost*slope + bias, low_cost_err, '.--', 'DisplayName', "Low-Cost System w/ Correction");
+%errorbar(delivered, low_cost, low_cost_err, '.-', 'DisplayName', "Low-Cost System");
+plot(delivered, li_7810, '.-.','DisplayName', "LI-7810");
 xlabel("Delivered CO_2 Flux [mg/m^2/min]")
 ylabel("Measured CO_2 Flux [mg/m^2/min]")
 grid on;
