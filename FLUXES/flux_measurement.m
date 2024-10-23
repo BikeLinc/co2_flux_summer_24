@@ -473,6 +473,13 @@ if processDynamic
 
         daq.data.F_mg = (Q.*(CHAMBER-AMBIENT))./As;
 
+
+        dC = cfg.ppm_to_mg(daq.data.CB_CALIB - daq.data.CA_CALIB);
+        uQ = cfg.lpm_to_cms(cfg.uQ);
+        uC = cfg.ppm_to_mg(modelCB.model_1_lin.RMSE);
+
+        daq.data.uF_mg = sqrt( (dC.*uQ./As).^2 + ((2.*Q.*uC)./As).^2 )
+
         daqDatasets{i} = daq;
     end
 end
@@ -509,10 +516,10 @@ if processDynamic
     for i = 1:height(daqDatasets)
         daq = daqDatasets{i};
         if (daq.meta.DEPLOY_SITE == "BURN")
-            p0 = plot(daq.data.T, daq.data.F_mg,'bs');
+            p0 = errorbar(daq.data.T, daq.data.F_mg, daq.data.uF_mg,'bs', 'CapSize', 0);
             h2 = [h2; p0];
         else
-            p1 = plot(daq.data.T, daq.data.F_mg,'gs');
+            p1 = errorbar (daq.data.T, daq.data.F_mg, daq.data.uF_mg, 'gs', 'CapSize', 0);
             h3 = [h3; p1];
         end
     end
