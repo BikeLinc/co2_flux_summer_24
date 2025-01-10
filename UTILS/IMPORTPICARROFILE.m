@@ -48,6 +48,35 @@ opts = setvaropts(opts, "DATE", "InputFormat", "yyyy-MM-dd");
 
 % Import the data
 dat = readtable(filename, opts);
+
+natIndices = isnat(dat.TIME);
+
+if sum(natIndices) ~= 0
+    leadIdx = [];
+    for i = 1:height(dat)
+        
+        if natIndices(i)
+            leadIdx = [leadIdx; i];
+    
+        else
+            break;
+        end
+    end
+    
+    dat(leadIdx,:) = [];
+    natIndices(leadIdx, :) = [];
+    
+    if any(natIndices)
+        % Interpolate NaT values linearly based on surrounding datetime values
+        validIndices = ~natIndices; % Logical indices of valid datetime values
+        validTimes = dat.TIME(validIndices); % Extract valid datetime values
+        interpTimes = interp1(find(validIndices), validTimes, find(natIndices), 'linear', 'extrap');
+        
+        % Assign interpolated values back to dat.T
+        dat.TIME(natIndices) = interpTimes;
+    end
+end
+
 dat.T = datetime(dat.DATE + timeofday(dat.TIME), "Format","default");
 dat.TIME = [];
 dat.DATE = [];

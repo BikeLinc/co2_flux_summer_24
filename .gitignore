@@ -2,3 +2,8 @@
 .DS_Store
 ./ambient_colocation/picarro.txt
 *.asv
+*.dat
+*.picarro
+ELT CALIB/PICARRO_SPECIFIC/picarro.txt
+DATA/CALIB/01.01.2025/01_01_25.picarro
+DATA/CALIB/04.22.2024/04_23_24_X_X.picarro
