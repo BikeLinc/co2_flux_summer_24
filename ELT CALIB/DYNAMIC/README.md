@@ -4,9 +4,14 @@ This tool generates calibration models for all sensors listed in the overlapping
 
 ## Getting Started
 
-1. Ensure your data files are properly organized in the `../../DATA/CALIB/` directory
-2. Make sure `overlapping_periods.csv` file is present and properly formatted
-3. Run the `calibration_v2.m` script
+1. Clone the repository by excecuting the following command
+
+`git clone -b gui-version https://github.com/BikeLinc/co2_flux_summer_24.git`
+
+2. Ensure your data files are properly organized in the `../../DATA/CALIB/` directory
+3. Make sure `overlapping_periods.csv` file is present and properly formatted
+4. Launch MATLAB and navigate to `calibration_v2.m` script.
+5. Run the `calibration_v2.m` script, select `Change Folder` if prompted.
 
 ## CSV File Format Requirements
 
