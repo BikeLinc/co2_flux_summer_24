@@ -1,192 +1,93 @@
-# CO2 Sensor Calibration Tool - User Guide
+# CO2 Flux Sensor Calibration Tool
 
-## Overview
-
-This tool generates calibration models for CO2 sensors using both linear models and neural networks. It processes data from specified DAQ and reference files to create calibration equations based on CO2 concentration, temperature, and humidity values.
-
-## Requirements
-
-- MATLAB (R2019b or newer recommended)
-- Neural Network Toolbox
-- Statistics and Machine Learning Toolbox
-- Input data files (see Data Format section)
+This tool generates calibration models for all sensors listed in the overlapping_periods.csv file. The calibration procedure has been designed to produce both linear regression and neural network models that can be later used to convert raw sensor readings into accurate CO2 measurements.
 
 ## Getting Started
 
-1. Make sure your input data is properly formatted (see Data Format section)
-2. Place your data files in the proper directories
-3. Run `calibration_v2.m` script
-4. Configure parameters through the displayed dialog
-5. Review the generated models and output files
+1. Ensure your data files are properly organized in the `../../DATA/CALIB/` directory
+2. Make sure `overlapping_periods.csv` file is present and properly formatted
+3. Run the `calibration_v2.m` script
 
-## Data Format
+## CSV File Format Requirements
 
-### Required Input Files
+The `overlapping_periods.csv` file must contain the following columns:
 
-1. **CSV Mapping File**: A file named `overlapping_periods.csv` containing columns:
-   - `DAQFile`: Path to DAQ sensor data file
-   - `LicorFile`: Path to LICOR reference data file (if applicable)
-   - `PICARROFile`: Path to PICARRO reference data file (if not using LICOR)
-   - `OverlapStart`: Start time of calibration period (MM/dd/yyyy HH:mm:ss)
-   - `OverlapEnd`: End time of calibration period (MM/dd/yyyy HH:mm:ss)
-   - `SensorA`: ID of the first sensor in the DAQ file
-   - `SensorB`: ID of the second sensor in the DAQ file
-   - `Type`: Type of data ("AMB" or "CL")
+| Column Name | Description |
+|-------------|-------------|
+| Type | Data type identifier ('AMB' or 'CL') |
+| DAQFile | Path to the DAQ data file (relative to DATA/CALIB/) |
+| LicorFile | Path to the Licor reference data file (relative to DATA/CALIB/) |
+| PICARROFile | Path to the PICARRO reference data file (relative to DATA/CALIB/) |
+| OverlapStart | Start time of the overlap period (format: MM/dd/yyyy HH:mm:ss) |
+| OverlapEnd | End time of the overlap period (format: MM/dd/yyyy HH:mm:ss) |
+| SensorA | ID of the first sensor in the DAQ file (e.g., 'A1', 'B3', or 'X' if not used) |
+| SensorB | ID of the second sensor in the DAQ file (e.g., 'A1', 'B3', or 'X' if not used) |
 
-### Data Organization
-
-#### CSV Structure Example
-Here's an example of how your `overlapping_periods.csv` should be structured:
-
+Example CSV format:
 ```
-DAQFile,LicorFile,PICARROFile,OverlapStart,OverlapEnd,SensorA,SensorB,Type
-sensor_data_20230601.daq,licor_data_20230601.licor,,06/01/2023 10:00:00,06/01/2023 14:30:00,K30_1,K30_2,AMB
-sensor_data_20230602.daq,,picarro_data_20230602.picarro,06/02/2023 09:15:00,06/02/2023 16:45:00,SBA_5,X,CL
+Type,DAQFile,LicorFile,PICARROFile,OverlapStart,OverlapEnd,SensorA,SensorB
+AMB,daq_file1.csv,licor_file1.csv,,05/10/2024 10:30:00,05/10/2024 15:45:00,A1,B2
+CL,,picarro_file1.csv,daq_file2.csv,05/12/2024 08:00:00,05/12/2024 11:30:00,A2,B3
 ```
 
-#### File Naming Conventions
-- **DAQ files**: Should use a `.daq` extension (contains sensor measurements)
-- **LICOR files**: Should use a `.licor` extension (reference CO2 data)
-- **PICARRO files**: Should use a `.picarro` extension (alternative reference data)
+## Parameter Configuration UI
 
-You can use any naming convention for the actual filenames, but the extensions help the script identify the file types.
+The script uses a two-panel approach for configuring calibration parameters:
 
-#### Using "X" in the CSV
-- In the `SensorA` or `SensorB` columns, an "X" means that channel doesn't contain a valid sensor.
-  - Example: If `SensorB` contains "X", only data from `SensorA` will be processed.
-- In the `LicorFile` or `PICARROFile` columns, leave one empty if you're using the other.
-  - The script expects either a LICOR file or a PICARRO file, but not both.
+### Panel 1: Data Processing Parameters
 
-#### File Requirements
-1. **DAQ files**: Must contain columns:
-   - `T` (timestamp)
-   - `CA`, `TA`, `HA` (Channel A: CO2, temperature, humidity)
-   - `CB`, `TB`, `HB` (Channel B: CO2, temperature, humidity)
-   
-2. **LICOR files**: Must contain columns:
-   - `T` (timestamp)
-   - `C` (reference CO2 concentration)
-   
-3. **PICARRO files**: Must contain columns:
-   - `T` (timestamp)
-   - Either `CO2` or `CO2_sync` (reference CO2 concentration)
+This panel collects parameters related to data preprocessing and filtering:
 
-### Directory Structure
+| Parameter | Description |
+|-----------|-------------|
+| Smooth duration | Window size (in minutes) for data smoothing |
+| Retime duration | Interval (in minutes) for resampling data to regular time intervals |
+| Outlier percentiles | Array defining the percentile range for outlier removal, e.g., `[2, 98]` |
+| Enable outlier removal | Toggle outlier removal (true/false) |
+| Reference minimum value | Minimum acceptable reference CO2 value (ppm) |
+| Reference maximum value | Maximum acceptable reference CO2 value (ppm) |
+| Data type to include | Select data subset to process ('AMB', 'CL', or 'Both') |
 
-The script expects the following directory structure:
-```
-co2_flux_summer_24_old/
-├── DATA/
-│   └── CALIB/
-│       ├── [Your DAQ data files]
-│       └── [Your LICOR/PICARRO reference files]
-├── ELT CALIB/
-│   └── DYNAMIC/
-│       ├── calibration_v2.m
-│       ├── getCalibrationParameters.m
-│       └── overlapping_periods.csv
-└── UTILS/
-    └── [Utility functions]
-```
+### Panel 2: Model Training Parameters
 
-## Parameter Configuration
+This panel collects parameters related to model training and evaluation:
 
-When you run the script, a parameter dialog will appear. Here's what each parameter means:
+| Parameter | Description |
+|-----------|-------------|
+| Number of bins | Number of bins to divide the data into for stratified sampling |
+| Target bin count | Minimum number of samples per bin for data replication |
+| Training fraction | Fraction of data used for model training (e.g., 0.5 = 50%) |
+| Validation fraction | Fraction of data used for validation (e.g., 0.1 = 10%) |
+| Evaluation fraction | Fraction of data used for final evaluation (e.g., 0.4 = 40%) |
+| Enable data replication | Toggle data replication for balancing bins (true/false) |
+| Use random split | Toggle between random or time-ordered data splitting (true/false) |
+| Neuron layers | Array defining neural network hidden layer sizes, e.g., `[16, 16]` |
+| Maximum epochs | Maximum training iterations for neural networks |
+| Predictors | Comma-separated list of predictor variables (e.g., 'X_C,X_T,X_H') |
+| Reference ranges | Comma-separated CO2 concentration ranges (format: '390-450,450-1200,390-1200') |
+| Range labels | Comma-separated labels for each range (e.g., '390_450,450_1200,390_1200') |
 
-### Data Selection
-- **Data Type**: Choose "AMB" for ambient, "CL" for closed-loop (enhanced), or "Both" for all data sets
-
-### Preprocessing Parameters
-- **Smoothing Duration**: Window size for smoothing data (in minutes)
-- **Retiming Duration**: Interval for resampling data (in minutes)
-- **Outlier Percentiles**: Range for identifying outliers (e.g., [2, 98])
-- **Outlier Removal**: Enable/disable removal of outlier data points
-- **Reference Min/Max**: Valid range for reference CO2 values (ppm)
-
-### Data Partitioning
-- **Number of Bins**: Number of bins for partitioning data
-- **Target Bin Count**: Target number of points per bin
-- **Train/Validation/Eval Fractions**: Data split proportions (must sum to 1.0)
-- **Replicate Data**: Enable/disable data replication for underrepresented bins
-- **Random Split**: Enable/disable random splitting (vs. sequential)
-
-### Model Parameters
-- **Predictors**: Variables to use as predictors (e.g., ["X_C", "X_T", "X_H"])
-- **Target Variable**: Variable to predict (usually "Y_C")
-- **Reference Ranges**: CO2 ranges for separate calibrations
-- **Range Labels**: Labels for each calibration range
-- **Neural Network Layers**: Number of neurons in each hidden layer
-- **Max Epochs**: Maximum training epochs for neural networks
-- **Max Training Tries**: Number of attempts to train neural networks
-- **Target RMSE**: Target error for stopping neural network training
-
-## Execution Flow
-
-1. Parameter configuration dialog appears
-2. Script loads input files based on settings
-3. Data preprocessing and alignment occurs
-4. Sensor data is collected and cleaned
-5. Data is partitioned into training/validation/evaluation sets
-6. Linear and neural network models are trained
-7. Model performance is evaluated and compared
-8. Models and figures are saved to output directories
+**Note**: The target variable is fixed to 'Y_C' (reference CO2 concentration) and doesn't require user input.
 
 ## Output Files
 
-### Models
-- Saved in the "models" directory with filename format:
-  - `[SensorID]-linear-[Predictors]-[Date].mat`: Linear models
-  - `[SensorID]-net-[Predictors]-[Date].mat`: Neural network models
+The calibration tool produces the following outputs:
 
-### Figures
-- Saved in the "figs_training" directory:
-  - Raw data plots
-  - Data partitioning visualizations
-  - Residual plots
-  - Time series predictions
-  - Cross-correlation corrections
+1. Trained models saved in `models/` directory with the naming pattern:
+   - Linear models: `<sensorID>-linear-<predictorSet>-<rangeLabel>-<date>.mat`
+   - Neural Network models: `<sensorID>-net-<predictorSet>-<rangeLabel>-<date>.mat`
 
-### Reports
-- `model_comparison_all_sensors.csv`: Table comparing all models' performance
+2. Figures saved in `figs_training/` directory, showing:
+   - Data partitions 
+   - Raw data overlaps
+   - Residual plots
+   - Time series comparisons between models and reference data
 
-## Evaluating Saved Models
+3. Model performance metrics saved in `model_comparison_all_sensors.csv`
 
-The script includes functionality to evaluate previously saved models on new data:
-1. Run the script through the model training
-2. When prompted, select model files to evaluate
-3. Review the evaluation plots and performance metrics
+## Model Evaluation
 
-## Troubleshooting
-
-### Common Issues
-
-1. **Missing Data Files**: 
-   - Ensure files exist in the correct directories
-   - Check CSV has correct file paths
-
-2. **Parameter Errors**:
-   - Ensure fraction values sum to 1.0
-   - Verify all numeric parameters are valid numbers
-   - Check array formats match expected formats
-
-3. **Not Enough Data**:
-   - Increase date range in overlapping_periods.csv
-   - Reduce bin count or target bin count parameters
-
-4. **Poor Model Performance**:
-   - Try different combinations of predictors
-   - Adjust neural network architecture
-   - Check reference data quality
-
-### Additional Common Issues
-
-5. **CSV Format Issues**:
-   - Ensure date formats match MM/dd/yyyy HH:mm:ss exactly
-   - Verify that file extensions are correctly specified (.daq, .licor, .picarro)
-   - Check that every DAQ file has at least one reference file (either LICOR or PICARRO)
-   - Make sure SensorA and SensorB values match the expected sensor IDs or "X"
-
-6. **Channel Assignment**:
-   - Channel A data is mapped to SensorA in the CSV
-   - Channel B data is mapped to SensorB in the CSV
-   - Incorrect channel assignment will result in data mismatch
+The tool includes a built-in model evaluation function that allows you to:
+1. Select previously saved models
+2. Apply them to evaluation datasets
+3. Compare their performance with visual plots and metrics
