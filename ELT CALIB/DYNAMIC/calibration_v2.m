@@ -11,23 +11,26 @@ end
 
 addpath(genpath('../../UTILS'));
 
+%% Get User Parameters
+disp("Getting parameters from user interface...");
+userParams = getCalibrationParameters();
+
+
+if isempty(userParams)
+    error('Parameter selection cancelled. Script terminated.');
+end
+
 %% Importing Data
 disp("Importing Data");
 csvFilePath = 'overlapping_periods.csv';
 fileMapping = readtable(csvFilePath);
 disp(['Number of rows found in CSV file: ', num2str(height(fileMapping))]);
 
-selection = questdlg('Select data type to include:', 'Data Selection', ...
-                     'AMB', 'CL', 'Both', 'Both');
-if isempty(selection)
-    error('No selection made. Script terminated.');
-end
-
-selectedFiles = filterFileMapping(fileMapping, selection);
+selectedFiles = filterFileMapping(fileMapping, userParams.dataSelection);
 disp(['Number of files selected: ', num2str(height(selectedFiles))]);
 
 %% Initialize
-[daqData, refData, settings] = initialize();
+[daqData, refData, settings] = initialize(userParams);
 
 save('cache/temp_daq_ref.mat', 'daqData', 'refData', 'settings');
 clear daqData refData;
@@ -68,7 +71,8 @@ save('cache/temp_synced_sensors.mat', 'allSensors');
 clear allSensors;
 
 %% Parameter Definitions
-[params, predictors, targetVariable] = defineParameters();
+[params, predictors, targetVariable] = defineParameters(userParams);
+params.up = userParams;
 
 %% Data Replication
 load('cache/temp_synced_sensors.mat', 'allSensors');
@@ -125,17 +129,17 @@ function selectedFiles = filterFileMapping(fileMapping, selection)
     end
 end
 
-function [daqData, refData, settings] = initialize()
+function [daqData, refData, settings] = initialize(userParams)
     daqData = [];
     refData = [];
 
-    settings.smoothDuration      = minutes(15);
-    settings.retimeDuration      = minutes(1);
-    settings.outlierPercentiles  = [2, 98]; 
-    settings.outlierRemoval      = false;
+    settings.smoothDuration      = minutes(userParams.smoothDuration);
+    settings.retimeDuration      = minutes(userParams.retimeDuration);
+    settings.outlierPercentiles  = userParams.outlierPercentiles; 
+    settings.outlierRemoval      = userParams.outlierRemoval;
     settings.errorValues         = [-999, 500, 2815, 64537, 231753, 65535, 2500, 2559];
-    settings.referenceMin        = 390;
-    settings.referenceMax        = 1200;
+    settings.referenceMin        = userParams.referenceMin;
+    settings.referenceMax        = userParams.referenceMax;
 end
 
 function [daqData, refData] = importSelectedFiles(selectedFiles, daqData, refData, settings)
@@ -374,19 +378,19 @@ function allSensors = furtherPreprocessAndSync(allSensors, refData, settings)
     end
 end
 
-function [params, predictors, targetVariable] = defineParameters()
+function [params, predictors, targetVariable] = defineParameters(userParams)
     disp("Parameter Definitions");
     
-    params.numBins = 25;
-    params.targetBinCount = 150;
-    params.trainFraction = 0.50;
-    params.validationFraction = 0.1;
-    params.evaluationFraction = 0.49;
-    params.replicateData = true;
-    params.useRandomSplit = true;
+    params.numBins = userParams.numBins;
+    params.targetBinCount = userParams.targetBinCount;
+    params.trainFraction = userParams.trainFraction;
+    params.validationFraction = userParams.validationFraction;
+    params.evaluationFraction = userParams.evaluationFraction;
+    params.replicateData = userParams.replicateData;
+    params.useRandomSplit = userParams.useRandomSplit;
     
-    predictors = ["X_C", "X_T", "X_H"];  
-    targetVariable = "Y_C";
+    predictors = userParams.predictors;  
+    targetVariable = userParams.targetVariable;
 end
 
 function allSensors = replicateData(allSensors, predictors, params)
@@ -532,10 +536,10 @@ function [models, modelComparisons] = trainModels(allSensors, dataPartitions, pr
     disp("Training Models (Linear & Neural Network)");
     waitbr = waitbar(0, "Training Models...");
 
-    allCombinations = {{'X_C','X_T','X_H'}};
+    allCombinations = {predictors};
 
-    referenceRanges = { [390, 450], [450, 1200], [390, 1200] };
-    rangeLabels     = { '390_450',  '450_1200',  '390_1200'  };
+    referenceRanges = params.up.referenceRanges;
+    rangeLabels     = params.up.rangeLabels;
 
     models = struct();  
     modelComparisons = struct();
@@ -632,8 +636,8 @@ function [models, modelComparisons] = trainModels(allSensors, dataPartitions, pr
 
                 for attempt = 1:maxTries
                     try
-                        tempNet = feedforwardnet([16,16]);
-                        tempNet.trainParam.epochs = 1000;
+                        tempNet = feedforwardnet(params.up.neuronLayers);
+                        tempNet.trainParam.epochs = params.up.maxEpochs;
                         tempNet.trainParam.showWindow = false;
                         tempNet = train(tempNet, trainData{:, currentPredictors}', ...
                                                 trainData.(targetVariable)');
@@ -1060,4 +1064,87 @@ function evaluateSavedModels(evaluationData, predictors, targetVariable)
     legend(legendEntries, 'Interpreter', 'none', 'Location', 'best');
     xlabel('Time'); ylabel(targetVariable);
     title('Model Evaluations on Provided Dataset');
+end
+
+function userParams = getCalibrationParameters()
+    prompt = {'Enter smooth duration (minutes):', ...
+              'Enter retime duration (minutes):', ...
+              'Enter outlier percentiles (e.g., [2, 98]):', ...
+              'Enable outlier removal (true/false):', ...
+              'Enter reference minimum value:', ...
+              'Enter reference maximum value:', ...
+              'Enter number of bins:', ...
+              'Enter target bin count:', ...
+              'Enter training fraction:', ...
+              'Enter validation fraction:', ...
+              'Enter evaluation fraction:', ...
+              'Enable data replication (true/false):', ...
+              'Use random split (true/false):', ...
+              'Enter neuron layers (e.g., [16, 16]):', ...
+              'Enter maximum epochs:', ...
+              'Enter predictors (comma-separated, e.g., X_C,X_T,X_H):', ...
+              'Enter target variable:', ...
+              'Enter reference ranges (format: 390-450,450-1200,390-1200):', ...
+              'Enter range labels (comma-separated, e.g., 390_450,450_1200,390_1200):', ...
+              'Select data type to include (AMB/CL/Both):'};
+    dlgtitle = 'Calibration Parameters';
+    dims = [1 50];
+    definput = {'15', '1', '[2, 98]', 'false', '390', '1200', '25', '150', '0.50', '0.1', '0.49', 'true', 'true', '[16, 16]', '1000', 'X_C,X_T,X_H', 'Y_C', '390-450,450-1200,390-1200', '390_450,450_1200,390_1200', 'Both'};
+    answer = inputdlg(prompt, dlgtitle, dims, definput);
+    
+    if isempty(answer)
+        userParams = [];
+        return;
+    end
+    
+    userParams.smoothDuration = str2double(answer{1});
+    userParams.retimeDuration = str2double(answer{2});
+    userParams.outlierPercentiles = str2num(answer{3});
+    userParams.outlierRemoval = strcmpi(answer{4}, 'true');
+    userParams.referenceMin = str2double(answer{5});
+    userParams.referenceMax = str2double(answer{6});
+    userParams.numBins = str2double(answer{7});
+    userParams.targetBinCount = str2double(answer{8});
+    userParams.trainFraction = str2double(answer{9});
+    userParams.validationFraction = str2double(answer{10});
+    userParams.evaluationFraction = str2double(answer{11});
+    userParams.replicateData = strcmpi(answer{12}, 'true');
+    userParams.useRandomSplit = strcmpi(answer{13}, 'true');
+    userParams.neuronLayers = str2num(answer{14});
+    userParams.maxEpochs = str2double(answer{15});
+    
+    % Parse predictors as a cell array of strings
+    predictorsList = strsplit(answer{16}, ',');
+    userParams.predictors = predictorsList;
+    
+    userParams.targetVariable = answer{17};
+    
+    % Parse reference ranges
+    rangesStr = strsplit(answer{18}, ',');
+    rangeCount = length(rangesStr);
+    referenceRanges = cell(1, rangeCount);
+    
+    for i = 1:rangeCount
+        rangeParts = strsplit(rangesStr{i}, '-');
+        if length(rangeParts) == 2
+            referenceRanges{i} = [str2double(rangeParts{1}), str2double(rangeParts{2})];
+        else
+            warning('Invalid range format: %s, using default [390, 450]', rangesStr{i});
+            referenceRanges{i} = [390, 450];
+        end
+    end
+    userParams.referenceRanges = referenceRanges;
+    
+    % Parse range labels
+    userParams.rangeLabels = strsplit(answer{19}, ',');
+    
+    userParams.dataSelection = answer{20};
+    
+    % Validate ranges and labels have the same count
+    if length(userParams.referenceRanges) ~= length(userParams.rangeLabels)
+        warning('Number of reference ranges (%d) does not match number of labels (%d). Using default values.', ...
+            length(userParams.referenceRanges), length(userParams.rangeLabels));
+        userParams.referenceRanges = {[390, 450], [450, 1200], [390, 1200]};
+        userParams.rangeLabels = {'390_450', '450_1200', '390_1200'};
+    end
 end
