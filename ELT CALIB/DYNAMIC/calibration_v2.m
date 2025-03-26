@@ -1067,13 +1067,29 @@ function evaluateSavedModels(evaluationData, predictors, targetVariable)
 end
 
 function userParams = getCalibrationParameters()
-    prompt = {'Enter smooth duration (minutes):', ...
+    % First dialog - Data Processing Parameters
+    prompt1 = {'Enter smooth duration (minutes):', ...
               'Enter retime duration (minutes):', ...
               'Enter outlier percentiles (e.g., [2, 98]):', ...
               'Enable outlier removal (true/false):', ...
               'Enter reference minimum value:', ...
               'Enter reference maximum value:', ...
-              'Enter number of bins:', ...
+              'Select data type to include (AMB/CL/Both):'};
+              
+    dlgtitle1 = 'Data Processing Parameters';
+    dims1 = [1 50];
+    definput1 = {'15', '1', '[2, 98]', 'false', '390', '1200', 'Both'};
+    options.Resize='on';
+    
+    answer1 = inputdlg(prompt1, dlgtitle1, dims1, definput1, options);
+    
+    if isempty(answer1)
+        userParams = [];
+        return;
+    end
+    
+    % Second dialog - Model Training Parameters
+    prompt2 = {'Enter number of bins:', ...
               'Enter target bin count:', ...
               'Enter training fraction:', ...
               'Enter validation fraction:', ...
@@ -1083,44 +1099,48 @@ function userParams = getCalibrationParameters()
               'Enter neuron layers (e.g., [16, 16]):', ...
               'Enter maximum epochs:', ...
               'Enter predictors (comma-separated, e.g., X_C,X_T,X_H):', ...
-              'Enter target variable:', ...
               'Enter reference ranges (format: 390-450,450-1200,390-1200):', ...
-              'Enter range labels (comma-separated, e.g., 390_450,450_1200,390_1200):', ...
-              'Select data type to include (AMB/CL/Both):'};
-    dlgtitle = 'Calibration Parameters';
-    dims = [1 50];
-    definput = {'15', '1', '[2, 98]', 'false', '390', '1200', '25', '150', '0.50', '0.1', '0.49', 'true', 'true', '[16, 16]', '1000', 'X_C,X_T,X_H', 'Y_C', '390-450,450-1200,390-1200', '390_450,450_1200,390_1200', 'Both'};
-    answer = inputdlg(prompt, dlgtitle, dims, definput);
+              'Enter range labels (comma-separated, e.g., 390_450,450_1200,390_1200):'};
+              
+    dlgtitle2 = 'Model Training Parameters';
+    dims2 = [1 50];
+    definput2 = {'25', '150', '0.50', '0.1', '0.49', 'true', 'true', '[16, 16]', '1000', 'X_C,X_T,X_H', '390-450,450-1200,390-1200', '390_450,450_1200,390_1200'};
     
-    if isempty(answer)
+    answer2 = inputdlg(prompt2, dlgtitle2, dims2, definput2, options);
+    
+    if isempty(answer2)
         userParams = [];
         return;
     end
     
-    userParams.smoothDuration = str2double(answer{1});
-    userParams.retimeDuration = str2double(answer{2});
-    userParams.outlierPercentiles = str2num(answer{3});
-    userParams.outlierRemoval = strcmpi(answer{4}, 'true');
-    userParams.referenceMin = str2double(answer{5});
-    userParams.referenceMax = str2double(answer{6});
-    userParams.numBins = str2double(answer{7});
-    userParams.targetBinCount = str2double(answer{8});
-    userParams.trainFraction = str2double(answer{9});
-    userParams.validationFraction = str2double(answer{10});
-    userParams.evaluationFraction = str2double(answer{11});
-    userParams.replicateData = strcmpi(answer{12}, 'true');
-    userParams.useRandomSplit = strcmpi(answer{13}, 'true');
-    userParams.neuronLayers = str2num(answer{14});
-    userParams.maxEpochs = str2double(answer{15});
+    % Combine answers from both dialogs
+    userParams.smoothDuration = str2double(answer1{1});
+    userParams.retimeDuration = str2double(answer1{2});
+    userParams.outlierPercentiles = str2num(answer1{3});
+    userParams.outlierRemoval = strcmpi(answer1{4}, 'true');
+    userParams.referenceMin = str2double(answer1{5});
+    userParams.referenceMax = str2double(answer1{6});
+    userParams.dataSelection = answer1{7};
+    
+    userParams.numBins = str2double(answer2{1});
+    userParams.targetBinCount = str2double(answer2{2});
+    userParams.trainFraction = str2double(answer2{3});
+    userParams.validationFraction = str2double(answer2{4});
+    userParams.evaluationFraction = str2double(answer2{5});
+    userParams.replicateData = strcmpi(answer2{6}, 'true');
+    userParams.useRandomSplit = strcmpi(answer2{7}, 'true');
+    userParams.neuronLayers = str2num(answer2{8});
+    userParams.maxEpochs = str2double(answer2{9});
     
     % Parse predictors as a cell array of strings
-    predictorsList = strsplit(answer{16}, ',');
+    predictorsList = strsplit(answer2{10}, ',');
     userParams.predictors = predictorsList;
     
-    userParams.targetVariable = answer{17};
+    % Set target variable statically instead of from UI
+    userParams.targetVariable = "Y_C";
     
     % Parse reference ranges
-    rangesStr = strsplit(answer{18}, ',');
+    rangesStr = strsplit(answer2{11}, ',');
     rangeCount = length(rangesStr);
     referenceRanges = cell(1, rangeCount);
     
@@ -1136,9 +1156,7 @@ function userParams = getCalibrationParameters()
     userParams.referenceRanges = referenceRanges;
     
     % Parse range labels
-    userParams.rangeLabels = strsplit(answer{19}, ',');
-    
-    userParams.dataSelection = answer{20};
+    userParams.rangeLabels = strsplit(answer2{12}, ',');
     
     % Validate ranges and labels have the same count
     if length(userParams.referenceRanges) ~= length(userParams.rangeLabels)
